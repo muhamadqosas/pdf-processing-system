@@ -445,23 +445,30 @@ function handleFile(files) {
   const valid   = [];
   const errors  = [];
 
+  // Deduplikasi: nama file yang sudah ada di selFiles
+  const existingNames = new Set(selFiles.map(function(f) { return f.name; }));
+
   Array.from(files).slice(0, MAX_FILES + 5).forEach(function(f) {
     if (!f.name.toLowerCase().endsWith('.pdf')) {
       errors.push({ name: f.name, reason: 'Bukan file PDF' });
     } else if (f.size > MAX_MB * 1024 * 1024) {
       errors.push({ name: f.name, reason: 'Ukuran ' + (f.size/1024/1024).toFixed(1) + ' MB > batas ' + MAX_MB + ' MB' });
+    } else if (existingNames.has(f.name)) {
+      errors.push({ name: f.name, reason: 'File sudah ada dalam daftar' });
     } else {
       valid.push(f);
+      existingNames.add(f.name);
     }
   });
 
-  if (valid.length > MAX_FILES) {
-    errors.push(...valid.splice(MAX_FILES).map(function(f) {
-      return { name: f.name, reason: 'Melebihi batas ' + MAX_FILES + ' file sekaligus' };
-    }));
-  }
+  // Gabungkan kumulatif, lalu cek total tidak melebihi MAX_FILES
+  const combined = selFiles.concat(valid);
+  const overflow = combined.splice(MAX_FILES);
+  overflow.forEach(function(f) {
+    errors.push({ name: f.name, reason: 'Melebihi batas ' + MAX_FILES + ' file sekaligus' });
+  });
 
-  selFiles = valid;
+  selFiles = combined;
   selFile  = selFiles[0] || null;
 
   renderFileList();
