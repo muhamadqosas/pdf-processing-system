@@ -169,6 +169,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 /* ── Footer ── */
 .footer{margin-top:auto;border-top:1px solid var(--border);background:var(--surface);padding:14px 24px;text-align:center;font-size:12px;color:var(--light)}
 
+/* ── Tombol Batalkan per-baris antrian ── */
+.btn-cancel-row{background:none;border:1px solid #FCA5A5;color:var(--danger);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .15s;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.btn-cancel-row:hover:not(:disabled){background:var(--danger-bg);border-color:var(--danger)}
+.btn-cancel-row:disabled{opacity:.5;cursor:not-allowed;background:var(--warning-bg);color:#92400E;border-color:#FDE68A}
+
 @media(max-width:620px){
   .pipeline{grid-template-columns:1fr 1fr}
   .pipe-step:nth-child(2){border-right:none}
@@ -723,6 +728,15 @@ async function fetchAndRenderQueue(myStatus) {
           '<div class="q-meta">' + sizeMb + '</div>' +
         '</div>' +
         (bmap[job.status] || '') +
+        (isMine && (job.status === 'waiting' || job.status === 'processing')
+          ? '<button class="btn-cancel-row" data-jobid="' + escHtml(job.job_id) + '" ' +
+              'onclick="cancelQueueRow(this)" title="Batalkan file ini">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:10px;height:10px">' +
+                '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' +
+              '</svg>' +
+              ' Batalkan' +
+            '</button>'
+          : '') +
       '</div>'
     );
   });
@@ -1044,6 +1058,82 @@ async function cancelJobById(forJobId) {
   cancelRequested = null;  // wajib null sebelum reset agar polling/guard tidak stuck
   clearSession();
   reset();                 // reset() akan reinit tombol Batalkan via full DOM rebuild
+}
+
+// ── cancelQueueRow: batalkan file tertentu langsung dari baris antrian ──
+// Dipanggil oleh tombol Batalkan per-baris di q-list.
+// Hanya membatalkan job milik user sendiri (isMine sudah difilter di render).
+// Tidak memengaruhi job milik user lain, maupun job aktif yang sedang diproses user lain.
+async function cancelQueueRow(btn) {
+  const targetJobId = btn.getAttribute('data-jobid');
+  if (!targetJobId) return;
+
+  // Jika ini adalah job aktif yang sedang dipantau, delegate ke cancelJobById (full flow)
+  if (targetJobId === jobId) {
+    cancelJobById(targetJobId);
+    return;
+  }
+
+  // Guard: jangan cancel bersamaan dengan proses cancel lain
+  if (cancelRequested !== null) {
+    showToast('⏳ Sedang membatalkan file lain, harap tunggu…', 'info');
+    return;
+  }
+
+  // Validasi ownership — hanya job milik user ini yang boleh dibatalkan
+  const isMyJob = uploadedJobs.some(function(j) { return j.job_id === targetJobId; });
+  if (!isMyJob) return;
+
+  btn.disabled = true;
+  btn.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:10px;height:10px">' +
+      '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' +
+    '</svg> Membatalkan…';
+
+  // Kirim permintaan cancel ke backend untuk job ini saja
+  try {
+    let res = await fetch(api('/job/' + encodeURIComponent(targetJobId)), {
+      method: 'DELETE',
+      signal: AbortSignal.timeout(6000)
+    });
+    if (!res.ok) {
+      res = await fetch(api('/cancel/' + encodeURIComponent(targetJobId)), {
+        method: 'POST',
+        signal: AbortSignal.timeout(6000)
+      });
+    }
+  } catch (_) {
+    // Lanjutkan ke polling konfirmasi meskipun request gagal
+  }
+
+  // Poll status job ini saja sampai final atau timeout (~15 detik)
+  const FINAL = new Set(['cancelled', 'error', 'completed']);
+  let confirmed = false;
+  for (let i = 0; i < 10; i++) {
+    await new Promise(function(r) { setTimeout(r, 1500); });
+    try {
+      const r = await fetch(api('/status/' + encodeURIComponent(targetJobId)),
+                            { signal: AbortSignal.timeout(4000) });
+      const d = await r.json();
+      if (FINAL.has(d.status)) { confirmed = true; break; }
+    } catch (_) {}
+  }
+
+  // Hapus dari state milik user ini saja — tidak menyentuh job lain
+  uploadedJobs    = uploadedJobs.filter(function(j) { return j.job_id !== targetJobId; });
+  completedJobIds = completedJobIds.filter(function(id) { return id !== targetJobId; });
+  saveSession();
+
+  if (confirmed) {
+    addLog('[WARN] File dibatalkan dari antrian: ' + targetJobId, 'w');
+    showToast('🚫 File berhasil dibatalkan dari antrian', 'info');
+  } else {
+    addLog('[WARN] Cancel dikirim, konfirmasi timeout', 'w');
+    showToast('⚠️ Permintaan batal dikirim, tunggu konfirmasi dari server', 'info');
+  }
+
+  // Refresh tampilan antrian (hanya render ulang — polling job aktif tidak terganggu)
+  fetchAndRenderQueue(lastStatus || 'waiting');
 }
 
 // ── Elapsed timer ──
