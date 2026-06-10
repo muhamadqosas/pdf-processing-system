@@ -633,9 +633,13 @@ async function fetchAndRenderQueue(myStatus) {
 
   const rows = [];
 
+  // Buat map job_id → filename dari uploadedJobs untuk pengecekan milik sendiri
+  const myJobMap = {};
+  uploadedJobs.forEach(function(j) { myJobMap[j.job_id] = j.filename; });
+
   // ── Render tiap baris antrian ──
   activeJobs.forEach(function(job, idx) {
-    const isMine = job.is_current_user === true;
+    const isMine = !!(job.is_current_user === true || myJobMap[job.job_id]);
     const isProc = job.status === 'processing';
     const pos    = isProc ? null : job.queue_position;
     const posLabel = isProc ? '▶' : ('#' + pos);
@@ -644,7 +648,7 @@ async function fetchAndRenderQueue(myStatus) {
     const numClass = isProc ? 'q-num proc' : (isMine ? 'q-num me' : 'q-num');
 
     // Nama file: nama asli jika milik user, "File User Lain" jika bukan
-    const displayName = isMine ? job.filename : 'File User Lain';
+    const displayName = isMine ? (job.filename || myJobMap[job.job_id] || 'File Anda') : 'File User Lain';
 
     // Ukuran file
     const sizeMb = (typeof job.file_size_mb === 'number') ? job.file_size_mb.toFixed(2) + ' MB' : '';
