@@ -162,7 +162,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 /* ── Cancel Button ── */
 .btn-cancel{background:none;border:1.5px solid #FCA5A5;color:var(--danger);padding:9px 26px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .18s;font-family:inherit}
 .btn-cancel:hover:not(:disabled){background:var(--danger-bg);border-color:var(--danger)}
-.btn-cancel:disabled{opacity:.4;cursor:not-allowed}
+.btn-cancel:disabled{opacity:.55;cursor:not-allowed;border-color:#FCA5A5;background:var(--warning-bg);color:#92400E}
 .btn-cancel svg{width:14px;height:14px}
 .cancel-row{display:flex;justify-content:center;margin-top:14px}
 
@@ -371,9 +371,6 @@ let currentProgress = 0;
 let lastStatus = null;
 let lastStage = null;
 let queuePreviewIv = null; // interval refresh queue-preview di upload section
-// job_id yang pernah dimiliki user di sesi ini (termasuk yang dibatalkan),
-// agar queue-preview tetap bisa mengenali job sendiri setelah reset
-let ownedJobIds = {};     // { job_id: filename }
 
 // ── Steps (visual) ──
 const STEPS = [
@@ -573,8 +570,8 @@ async function refreshQueuePreview() {
       return;
     }
 
-    // Buat map job_id → filename: gabungkan uploadedJobs + ownedJobIds
-    const myJobMap = Object.assign({}, ownedJobIds);
+    // Buat map job_id → filename dari uploadedJobs untuk pengecekan milik sendiri
+    const myJobMap = {};
     uploadedJobs.forEach(function(j) { myJobMap[j.job_id] = j.filename; });
 
     list.innerHTML = jobs.map(function(job, idx) {
@@ -656,8 +653,8 @@ async function fetchAndRenderQueue(myStatus) {
 
   const rows = [];
 
-  // Buat map job_id → filename: gabungkan uploadedJobs + ownedJobIds
-  const myJobMap = Object.assign({}, ownedJobIds);
+  // Buat map job_id → filename dari uploadedJobs untuk pengecekan milik sendiri
+  const myJobMap = {};
   uploadedJobs.forEach(function(j) { myJobMap[j.job_id] = j.filename; });
 
   // ── Render tiap baris antrian ──
@@ -852,60 +849,123 @@ function stopPolling() {
   if (pollIv) { clearInterval(pollIv); pollIv = null; }
 }
 
-// ── Cancel Process — batalkan hanya job milik user yang sedang dipantau ──
+// ── Cancel Process ──
+// Alur:
+//   1. Kirim permintaan cancel ke backend (DELETE /job/<id>, fallback POST /cancel/<id>)
+//   2. Poll GET /status/<id> sampai status = 'cancelled' | 'error' | timeout 15 dtk
+//   3. Hapus job dari uploadedJobs & completedJobIds agar antrian/log sinkron
+//   4. Baru reset UI ke halaman upload
 async function cancelProcess() {
   const btn = document.getElementById('btn-cancel');
   if (!btn || btn.disabled) return;
 
   btn.disabled = true;
-  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Membatalkan…';
+  btn.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:14px;height:14px">' +
+      '<circle cx="12" cy="12" r="10"/>' +
+      '<line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>' +
+    '</svg> Membatalkan…';
 
-  // Hentikan polling & timer dulu
+  // Hentikan polling & elapsed timer (kita ambil alih polling di sini)
   stopPolling();
   stopElapsed();
 
-  // Kumpulkan semua job milik user yang masih aktif (waiting / processing)
-  // Hanya job_id yang ada di uploadedJobs sesi ini — bukan job orang lain
-  const jobsToCancel = uploadedJobs.filter(function(j) {
-    return j.status === 'waiting' || j.status === 'processing' || !j.status;
-  });
+  const cancelledJobId = jobId; // simpan karena jobId bisa berubah saat multi-job
 
-  // Jika tidak ada job aktif, batalkan hanya jobId yang sedang dipantau
-  const cancelTargets = jobsToCancel.length > 0
-    ? jobsToCancel.map(function(j) { return j.job_id; })
-    : (jobId ? [jobId] : []);
+  addLog('[WARN] Permintaan pembatalan dikirim…', 'w');
+  setProgress(currentProgress, 'Membatalkan…');
 
-  let cancelOk = false;
-
-  for (const cid of cancelTargets) {
-    if (!cid) continue;
+  // ── 1. Kirim permintaan cancel ke backend ──
+  let cancelSent = false;
+  if (cancelledJobId) {
     try {
-      let res = await fetch(api('/job/' + encodeURIComponent(cid)), {
+      let res = await fetch(api('/job/' + encodeURIComponent(cancelledJobId)), {
         method: 'DELETE',
         signal: AbortSignal.timeout(5000)
       });
+      // Fallback: beberapa backend pakai POST /cancel/<id>
       if (!res.ok) {
-        res = await fetch(api('/cancel/' + encodeURIComponent(cid)), {
+        res = await fetch(api('/cancel/' + encodeURIComponent(cancelledJobId)), {
           method: 'POST',
           signal: AbortSignal.timeout(5000)
         });
       }
-      if (res.ok) cancelOk = true;
+      cancelSent = res.ok;
+      if (!cancelSent) {
+        addLog('[WARN] Cancel dikirim (HTTP ' + res.status + ')', 'w');
+      }
     } catch (_) {
-      cancelOk = true; // tetap reset UI
+      // Backend tidak punya endpoint cancel - tetap lanjut polling konfirmasi
+      addLog('[WARN] Endpoint cancel tidak tersedia, menunggu konfirmasi…', 'w');
     }
   }
 
-  if (cancelOk || cancelTargets.length === 0) {
-    showToast('🚫 Proses dibatalkan', 'info');
-    addLog('[WARN] Proses dibatalkan oleh pengguna', 'w');
+  // ── 2. Poll GET /status/<id> sampai status terkonfirmasi atau timeout ──
+  const POLL_INTERVAL_MS = 1500;
+  const MAX_POLLS        = 10;   // maks ~15 detik tunggu
+  const FINAL_STATUSES   = new Set(['cancelled', 'error', 'completed']);
+
+  let confirmed   = false;
+  let finalStatus = null;
+
+  if (cancelledJobId) {
+    for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
+      await new Promise(function(r) { setTimeout(r, POLL_INTERVAL_MS); });
+      try {
+        const res  = await fetch(api('/status/' + encodeURIComponent(cancelledJobId)),
+                                 { signal: AbortSignal.timeout(4000) });
+        const data = await res.json();
+        const st   = data.status || '';
+
+        // Perbarui antrian di UI selama menunggu konfirmasi
+        fetchAndRenderQueue(st);
+
+        if (FINAL_STATUSES.has(st)) {
+          confirmed   = true;
+          finalStatus = st;
+          break;
+        }
+      } catch (_) {
+        // Abaikan error jaringan sementara, coba lagi
+      }
+    }
   } else {
-    showToast('⚠️ Permintaan batal dikirim', 'info');
-    addLog('[WARN] Permintaan batal dikirim ke server', 'w');
+    // Tidak ada jobId aktif - langsung anggap selesai
+    confirmed = true;
   }
 
-  // Reset UI ke upload section setelah 600ms agar log sempat terbaca
-  setTimeout(reset, 600);
+  // ── 3. Sinkronkan state: hapus job yang dibatalkan dari daftar ──
+  if (cancelledJobId) {
+    uploadedJobs    = uploadedJobs.filter(function(j) { return j.job_id !== cancelledJobId; });
+    completedJobIds = completedJobIds.filter(function(id) { return id !== cancelledJobId; });
+  }
+
+  // ── 4. Feedback & reset UI ──
+  if (!confirmed) {
+    // Timeout - anggap dibatalkan dari sisi frontend, beri tahu user
+    addLog('[WARN] Konfirmasi cancel timeout — UI direset', 'w');
+    showToast('⚠️ Timeout konfirmasi, proses mungkin masih berjalan di server', 'info');
+  } else if (finalStatus === 'cancelled') {
+    addLog('[WARN] Proses dibatalkan oleh pengguna ✓', 'w');
+    showToast('🚫 Proses dibatalkan', 'info');
+  } else if (finalStatus === 'error') {
+    addLog('[ERROR] Job berakhir dengan error setelah dibatalkan', 'e');
+    showToast('⚠️ Job dihentikan (status: error)', 'info');
+  } else if (finalStatus === 'completed') {
+    // Race condition: selesai sebelum cancel terkonfirmasi
+    addLog('[INFO] Job sudah selesai sebelum dibatalkan', 'i');
+    showToast('✅ Job sudah selesai sebelum dibatalkan', 'ok');
+    // Tampilkan hasil daripada reset
+    if (cancelledJobId) {
+      uploadedJobs.push({ job_id: cancelledJobId, filename: (selFile && selFile.name) || cancelledJobId, status: 'completed' });
+      completedJobIds.push(cancelledJobId);
+    }
+    setTimeout(showResult, 300);
+    return;
+  }
+
+  // Tunda sedikit agar log terakhir sempat terbaca, lalu reset
+  setTimeout(reset, 400);
 }
 
 // ── Elapsed timer ──
@@ -946,7 +1006,6 @@ async function startProcess() {
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Upload gagal');
       successJobs.push({ job_id: data.job_id, filename: f.name, status: data.status || 'waiting' });
-      ownedJobIds[data.job_id] = f.name;  // simpan permanen di sesi ini
     } catch (err) {
       failedFiles.push({ name: f.name, reason: err.message });
     }
@@ -1111,8 +1170,6 @@ function reset() {
   lastStage       = null;
   currentProgress = 0;
   completedJobIds = [];
-  // ownedJobIds TIDAK dikosongkan — agar queue-preview tetap mengenali
-  // job sendiri yang belum selesai/dibatalkan setelah kembali ke menu awal
   document.getElementById('file-input').value = '';
   renderFileList();
   document.getElementById('file-errors-wrap').style.display = 'none';
