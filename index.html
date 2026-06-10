@@ -463,84 +463,123 @@ function renderSteps(ai) {
   }).join('');
 }
 
-// ── Queue (data nyata dari GET /queue) ──
+// ── Queue (data nyata dari GET /queue?job_id=...) ──
 async function fetchAndRenderQueue(myStatus) {
   const bmap = {
-    processing: '<span class="stbadge sp"><span class="sd"></span>Diproses</span>',
+    processing: '<span class="stbadge sp"><span class="sd"></span>Sedang Diproses</span>',
     waiting:    '<span class="stbadge sw"><span class="sd"></span>Menunggu</span>',
     completed:  '<span class="stbadge sk"><span class="sd"></span>Selesai</span>',
     error:      '<span class="stbadge se"><span class="sd"></span>Gagal</span>',
   };
 
-  let waiting = 0, processing = 0, completed = 0;
+  let data = null;
   try {
-    const res = await fetch(api('/queue'));
-    const data = await res.json();
-    waiting = data.waiting || 0;
-    processing = data.processing || 0;
-    completed = data.completed || 0;
-  } catch (_) {}
+    const url = jobId ? api('/queue?job_id=' + encodeURIComponent(jobId)) : api('/queue');
+    const res = await fetch(url);
+    data = await res.json();
+  } catch (_) { return; }
 
-  const effectiveStatus = myStatus || 'waiting';
-  const activeCount = waiting + processing;
+  if (!data) return;
+
+  const activeJobs = data.active_jobs || [];
+  const activeCount = (data.waiting || 0) + (data.processing || 0);
   document.getElementById('q-badge').textContent = activeCount + ' file';
 
   const rows = [];
-  const fname = selFile ? selFile.name : 'file.pdf';
-  const fsize = selFile ? (selFile.size/1024/1024).toFixed(2) + ' MB' : '';
 
-  rows.push(
-    '<div class="q-row mine">' +
-      '<div class="q-num me">1</div>' +
-      '<div class="q-inf">' +
-        '<div class="q-name-row">' +
-          '<span class="q-name">' + fname + '</span>' +
-          '<span class="q-me-tag">&#9654; Milikmu</span>' +
-        '</div>' +
-        '<div class="q-meta">' + fsize + '</div>' +
-      '</div>' +
-      (bmap[effectiveStatus] || '') +
-    '</div>'
-  );
+  // ── Render tiap baris antrian ──
+  activeJobs.forEach(function(job, idx) {
+    const isMine = job.is_current_user === true;
+    const isProc = job.status === 'processing';
+    const pos    = isProc ? null : job.queue_position;
+    const posLabel = isProc ? '▶' : ('#' + pos);
 
-  if (waiting > 1) {
+    // Nomor posisi
+    const numClass = isProc ? 'q-num proc' : (isMine ? 'q-num me' : 'q-num');
+
+    // Nama file: nama asli jika milik user, "File User Lain" jika bukan
+    const displayName = isMine ? job.filename : 'File User Lain';
+
+    // Ukuran file
+    const sizeMb = (typeof job.file_size_mb === 'number') ? job.file_size_mb.toFixed(2) + ' MB' : '';
+
+    // Tag milikmu
+    const meTag = isMine
+      ? '<span class="q-me-tag">&#9654; Milikmu</span>'
+      : '';
+
     rows.push(
-      '<div class="q-row">' +
-        '<div class="q-num">' + waiting + '</div>' +
+      '<div class="q-row' + (isMine ? ' mine' : '') + '">' +
+        '<div class="' + numClass + '">' + posLabel + '</div>' +
         '<div class="q-inf">' +
-          '<div class="q-name-row"><span class="q-name">' + (waiting - 1) + ' file lain menunggu</span></div>' +
-          '<div class="q-meta">Antrian FIFO</div>' +
+          '<div class="q-name-row">' +
+            '<span class="q-name">' + escHtml(displayName) + '</span>' +
+            meTag +
+          '</div>' +
+          '<div class="q-meta">' + sizeMb + '</div>' +
         '</div>' +
-        bmap['waiting'] +
+        (bmap[job.status] || '') +
+      '</div>'
+    );
+  });
+
+  // ── Ringkasan posisi user (jika ada data dari backend) ──
+  const myPos       = data.my_position;
+  const myAhead     = data.my_jobs_ahead;
+  const myAheadSize = data.my_queue_ahead_size_mb;
+
+  // Tampilkan ringkasan hanya jika user sedang menunggu (bukan sedang diproses)
+  if (jobId && typeof myPos === 'number' && myStatus === 'waiting') {
+    const summaryBg  = myAhead === 0 ? 'var(--success-bg)' : 'var(--primary-light)';
+    const summaryBdr = myAhead === 0 ? '#A7F3D0' : '#BFDBFE';
+    const summaryClr = myAhead === 0 ? '#059669' : 'var(--primary)';
+
+    let summaryLines = [];
+    summaryLines.push('<strong>Posisi Anda: #' + myPos + '</strong>');
+    if (myAhead > 0) {
+      summaryLines.push(myAhead + ' file sebelum giliran Anda');
+      summaryLines.push('Total ukuran sebelum Anda: ' + (myAheadSize || 0).toFixed(2) + ' MB');
+    } else {
+      summaryLines.push('Anda berikutnya — worker sedang memproses');
+    }
+
+    rows.push(
+      '<div style="margin:6px 14px 8px;padding:11px 15px;background:' + summaryBg + ';' +
+        'border:1px solid ' + summaryBdr + ';border-radius:9px;' +
+        'font-size:12.5px;color:' + summaryClr + ';line-height:1.8">' +
+        summaryLines.join('<br>') +
+      '</div>'
+    );
+  } else if (jobId && myStatus === 'processing') {
+    rows.push(
+      '<div style="margin:6px 14px 8px;padding:11px 15px;background:var(--primary-light);' +
+        'border:1px solid #BFDBFE;border-radius:9px;' +
+        'font-size:12.5px;color:var(--primary);line-height:1.8">' +
+        '<strong>File Anda sedang diproses</strong><br>' +
+        'Worker aktif — pantau progress di atas' +
       '</div>'
     );
   }
-  if (processing > 1) {
+
+  // Jika antrian kosong
+  if (activeJobs.length === 0) {
     rows.push(
-      '<div class="q-row">' +
-        '<div class="q-num proc">' + processing + '</div>' +
-        '<div class="q-inf">' +
-          '<div class="q-name-row"><span class="q-name">' + processing + ' file sedang diproses</span></div>' +
-          '<div class="q-meta">Worker aktif</div>' +
-        '</div>' +
-        bmap['processing'] +
-      '</div>'
-    );
-  }
-  if (completed > 0) {
-    rows.push(
-      '<div class="q-row">' +
-        '<div class="q-num" style="background:var(--success-bg);color:#059669">' + completed + '</div>' +
-        '<div class="q-inf">' +
-          '<div class="q-name-row"><span class="q-name">' + completed + ' file selesai</span></div>' +
-          '<div class="q-meta">Sesi ini</div>' +
-        '</div>' +
-        bmap['completed'] +
+      '<div style="padding:20px;text-align:center;font-size:13px;color:var(--light)">' +
+        'Antrian kosong' +
       '</div>'
     );
   }
 
   document.getElementById('q-list').innerHTML = rows.join('');
+}
+
+// ── Helper: escape HTML ──
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 // ── handleStatusOnce: log hanya saat status berubah ──
