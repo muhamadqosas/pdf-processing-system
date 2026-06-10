@@ -316,21 +316,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
     <div class="result-ico">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
-    <div class="result-title">Konversi Selesai! ✅</div>
-    <div class="result-sub">File Excel hasil QC siap diunduh langsung dari halaman ini.</div>
-    <div class="result-file" id="result-file">
-      <div class="result-file-ico">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      </div>
-      <div>
-        <div class="result-fname" id="result-fname">—</div>
-        <div class="result-fmeta" id="result-fmeta">—</div>
-      </div>
-    </div>
-    <button class="btn-dl" id="btn-dl" onclick="doDownload()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="15" x2="12" y2="4"/></svg>
-      Unduh File Excel
-    </button>
+    <div class="result-title" id="result-title">Konversi Selesai! ✅</div>
+    <div class="result-sub" id="result-sub">File Excel hasil QC siap diunduh langsung dari halaman ini.</div>
+    <!-- Daftar file hasil — diisi oleh JS -->
+    <div id="result-files-list" style="width:100%;margin-bottom:20px"></div>
     <br>
     <button class="btn-again" onclick="reset()">↩ Proses file lain</button>
   </div>
@@ -561,15 +550,24 @@ async function refreshQueuePreview() {
       return;
     }
 
+    // Buat map job_id → filename dari uploadedJobs untuk pengecekan milik sendiri
+    const myJobMap = {};
+    uploadedJobs.forEach(function(j) { myJobMap[j.job_id] = j.filename; });
+
     list.innerHTML = jobs.map(function(job, idx) {
-      const isProc  = job.status === 'processing';
+      const isMine   = !!(job.is_current_user === true || myJobMap[job.job_id]);
+      const isProc   = job.status === 'processing';
       const posLabel = isProc ? '▶' : ('#' + (job.queue_position || (idx + 1)));
-      const numClass = isProc ? 'q-num proc' : 'q-num';
+      const numClass = isProc ? 'q-num proc' : (isMine ? 'q-num me' : 'q-num');
       const sizeMb   = (typeof job.file_size_mb === 'number') ? job.file_size_mb.toFixed(2) + ' MB' : '';
-      return '<div class="q-row">' +
+      const displayName = isMine ? (job.filename || myJobMap[job.job_id] || 'File Anda') : 'File User Lain';
+      const meTag = isMine ? '<span class="q-me-tag">&#9654; Milikmu</span>' : '';
+      return '<div class="q-row' + (isMine ? ' mine' : '') + '">' +
         '<div class="' + numClass + '">' + posLabel + '</div>' +
         '<div class="q-inf">' +
-          '<div class="q-name">File User Lain</div>' +
+          '<div class="q-name-row">' +
+            '<span class="q-name">' + escHtml(displayName) + '</span>' + meTag +
+          '</div>' +
           '<div class="q-meta">' + sizeMb + '</div>' +
         '</div>' +
         (bmap[job.status] || '') +
@@ -915,44 +913,120 @@ async function startProcess() {
 }
 
 // ── Result ──
+// completedJobIds: set job_id yang sudah selesai
+let completedJobIds = [];
+
 function showResult() {
   stopElapsed();
   document.getElementById('prog-card').classList.remove('show');
-  const outName = selFile ? selFile.name.replace(/\.pdf$/i, '') + '_Result.xlsx' : 'Hasil QC.xlsx';
-  document.getElementById('result-fname').textContent = outName;
-  // Info tambahan jika multi-job
-  const remaining = uploadedJobs.filter(function(j) { return j.job_id !== jobId; }).length;
-  const meta = remaining > 0
-    ? 'Excel · Data QC Defect · Siap diunduh · +' + remaining + ' file lain masih di antrian'
-    : 'Excel · Data QC Defect · Siap diunduh';
-  document.getElementById('result-fmeta').textContent = meta;
+
+  // Tandai job ini sebagai selesai
+  if (jobId && !completedJobIds.includes(jobId)) {
+    completedJobIds.push(jobId);
+  }
+
+  // Render daftar file yang sudah selesai
+  renderResultList();
+
   document.getElementById('result-card').classList.add('show');
+
+  // Cek apakah masih ada job lain yang belum selesai
+  const pending = uploadedJobs.filter(function(j) {
+    return !completedJobIds.includes(j.job_id);
+  });
+
+  if (pending.length > 0) {
+    // Update title & sub
+    document.getElementById('result-title').textContent = completedJobIds.length + ' File Selesai — ' + pending.length + ' File Tersisa';
+    document.getElementById('result-sub').textContent =
+      'File berikutnya sedang dalam antrian. Progress akan otomatis dilanjutkan.';
+
+    // Mulai monitor job berikutnya
+    const nextJob = pending[0];
+    setTimeout(function() {
+      jobId = nextJob.job_id;
+      selFile = selFiles.find(function(f) { return f.name === nextJob.filename; }) || selFiles[0];
+
+      // Reset progress & log untuk job baru
+      t0 = Date.now();
+      lastStatus = null;
+      lastStage  = null;
+      startElapsed();
+      document.getElementById('log-body').innerHTML = '';
+      setProgress(0, 'File berikutnya masuk antrian…');
+      renderSteps(-1);
+      renderPipeline(0);
+      document.getElementById('prog-card').classList.add('show');
+      addLog('[INFO] Melanjutkan ke file: ' + nextJob.filename, 'i');
+      addLog('[INFO] Job ID: ' + nextJob.job_id, 'i');
+
+      startPolling();
+    }, 800);
+  } else {
+    // Semua file selesai
+    document.getElementById('result-title').textContent = 'Semua File Selesai! ✅';
+    document.getElementById('result-sub').textContent =
+      uploadedJobs.length > 1
+        ? uploadedJobs.length + ' file Excel hasil QC siap diunduh.'
+        : 'File Excel hasil QC siap diunduh langsung dari halaman ini.';
+  }
+}
+
+function renderResultList() {
+  const list = document.getElementById('result-files-list');
+  const doneJobs = uploadedJobs.filter(function(j) {
+    return completedJobIds.includes(j.job_id);
+  });
+  list.innerHTML = doneJobs.map(function(j, idx) {
+    const outName = j.filename.replace(/\.pdf$/i, '') + '_Result.xlsx';
+    return '<div class="result-file" style="margin-bottom:10px;text-align:left">' +
+      '<div class="result-file-ico">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
+      '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div class="result-fname">' + escHtml(outName) + '</div>' +
+        '<div class="result-fmeta">Excel · Data QC Defect · Siap diunduh</div>' +
+      '</div>' +
+      '<button class="btn-dl" onclick="doDownloadJob(\'' + escHtml(j.job_id) + '\', this)" ' +
+        'style="padding:10px 20px;font-size:13px;margin-bottom:0;flex-shrink:0">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="15" x2="12" y2="4"/></svg>' +
+        ' Unduh' +
+      '</button>' +
+    '</div>';
+  }).join('');
 }
 
 // ── Download ──
-function doDownload() {
-  if (!jobId) return;
-  const btn = document.getElementById('btn-dl');
-  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:17px;height:17px"><polyline points="20 6 9 17 4 12"/></svg> Mengunduh…';
+function doDownloadJob(jid, btn) {
+  if (!jid) return;
+  var origHtml = btn.innerHTML;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px"><polyline points="20 6 9 17 4 12"/></svg> Mengunduh…';
   btn.style.opacity = '.75';
-  window.location = api('/download/' + jobId);
+  window.location = api('/download/' + jid);
   setTimeout(function() {
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:17px;height:17px"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="15" x2="12" y2="4"/></svg> Unduh Lagi';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="15" x2="12" y2="4"/></svg> Unduh Lagi';
     btn.style.opacity = '1';
   }, 1500);
+}
+
+// backward compat
+function doDownload() {
+  var btn = document.getElementById('btn-dl');
+  doDownloadJob(jobId, btn || { innerHTML: '', style: {} });
 }
 
 // ── Reset ──
 function reset() {
   stopPolling();
   stopElapsed();
-  selFiles      = [];
-  selFile       = null;
-  uploadedJobs  = [];
-  jobId         = null;
-  lastStatus    = null;
-  lastStage     = null;
+  selFiles        = [];
+  selFile         = null;
+  uploadedJobs    = [];
+  jobId           = null;
+  lastStatus      = null;
+  lastStage       = null;
   currentProgress = 0;
+  completedJobIds = [];
   document.getElementById('file-input').value = '';
   renderFileList();
   document.getElementById('file-errors-wrap').style.display = 'none';
