@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QC Defect — PDF ke Excel</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#2563EB;--primary-dark:#1D4ED8;--primary-light:#EFF6FF;
+  --bg:#F1F5F9;--surface:#fff;--border:#E2E8F0;
+  --text:#0F172A;--muted:#64748B;--light:#94A3B8;
+  --success:#10B981;--success-bg:#ECFDF5;
+  --warning:#F59E0B;--warning-bg:#FFFBEB;
+  --danger:#EF4444;--danger-bg:#FEF2F2;
+  --radius:14px;--radius-sm:8px;
+  --shadow:0 4px 20px rgba(0,0,0,.08);
+}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:99px}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+
+/* ── Topbar ── */
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-icon{width:34px;height:34px;background:linear-gradient(135deg,#2563EB,#7C3AED);border-radius:9px;display:flex;align-items:center;justify-content:center}
+.brand-icon svg{width:17px;height:17px;fill:#fff}
+.brand-name{font-size:15px;font-weight:700;letter-spacing:-.3px}
+.brand-sub{font-size:11px;color:var(--muted);margin-left:4px;font-weight:400}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.status-pill{display:flex;align-items:center;gap:6px;background:var(--success-bg);border:1px solid #A7F3D0;border-radius:99px;padding:4px 12px;font-size:12px;font-weight:600;color:#059669}
+.live-dot{width:7px;height:7px;background:var(--success);border-radius:50%;animation:pulse-live 2s infinite;flex-shrink:0}
+@keyframes pulse-live{0%,100%{box-shadow:0 0 0 3px rgba(16,185,129,.2)}50%{box-shadow:0 0 0 6px rgba(16,185,129,.08)}}
+
+/* ── Layout ── */
+.page{max-width:820px;margin:0 auto;padding:36px 20px 60px;width:100%}
+
+/* ── Section title ── */
+.sec-label{font-size:11.5px;font-weight:700;color:var(--light);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px}
+
+/* ── Upload Card ── */
+.upload-card{background:var(--surface);border:2px dashed var(--border);border-radius:var(--radius);padding:48px 32px;text-align:center;cursor:pointer;transition:all .18s;margin-bottom:10px}
+.upload-card:hover,.upload-card.drag{border-color:var(--primary);background:var(--primary-light)}
+.upload-icon{width:70px;height:70px;background:var(--primary-light);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;transition:transform .18s}
+.upload-card:hover .upload-icon{transform:scale(1.06)}
+.upload-icon svg{width:30px;height:30px;color:var(--primary)}
+.upload-title{font-size:18px;font-weight:700;margin-bottom:6px}
+.upload-sub{font-size:13.5px;color:var(--muted);margin-bottom:18px}
+.chips{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.chip{background:var(--bg);border:1px solid var(--border);border-radius:99px;padding:4px 13px;font-size:11.5px;color:var(--muted);font-weight:500}
+#file-input{display:none}
+
+/* ── File Selected ── */
+.file-row{display:none;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:13px 16px;margin-bottom:14px}
+.file-row.show{display:flex}
+.file-ico{width:40px;height:40px;background:#FEF2F2;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.file-ico svg{width:19px;height:19px;color:var(--danger)}
+.file-det{flex:1;min-width:0}
+.file-name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.file-size{font-size:12px;color:var(--muted);margin-top:2px}
+.btn-rm{background:none;border:none;cursor:pointer;color:var(--light);font-size:17px;padding:4px;line-height:1;transition:color .15s}
+.btn-rm:hover{color:var(--danger)}
+
+/* ── Warning ── */
+.warn-box{display:flex;align-items:flex-start;gap:9px;background:var(--warning-bg);border:1px solid #FDE68A;border-radius:var(--radius-sm);padding:12px 15px;font-size:12.5px;color:#92400E;margin-bottom:14px}
+.warn-box svg{width:15px;height:15px;flex-shrink:0;margin-top:1px;color:var(--warning)}
+
+/* ── Main Action Button ── */
+.action-row{display:flex;justify-content:center;margin-bottom:28px}
+.btn-main{background:linear-gradient(135deg,#2563EB,#7C3AED);color:#fff;border:none;padding:15px 52px;border-radius:var(--radius);font-size:15.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:0 4px 22px rgba(37,99,235,.32);transition:all .18s}
+.btn-main:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 7px 28px rgba(37,99,235,.4)}
+.btn-main:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-main svg{width:18px;height:18px}
+
+/* ── Pipeline (how it works) ── */
+.pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-bottom:28px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.pipe-step{padding:18px 14px;text-align:center;border-right:1px solid var(--border);position:relative}
+.pipe-step:last-child{border-right:none}
+.pipe-num{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#2563EB,#7C3AED);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 8px}
+.pipe-icon{font-size:22px;margin-bottom:6px}
+.pipe-label{font-size:12px;font-weight:700;margin-bottom:3px}
+.pipe-desc{font-size:11px;color:var(--muted);line-height:1.5}
+.pipe-step.active-step{background:var(--primary-light)}
+.pipe-step.done-step{background:var(--success-bg)}
+.pipe-step.done-step .pipe-num{background:var(--success)}
+.pipe-arrow{position:absolute;right:-10px;top:50%;transform:translateY(-50%);z-index:2;width:20px;height:20px;background:var(--surface);border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid var(--border)}
+.pipe-arrow svg{width:11px;height:11px;color:var(--light)}
+.pipe-step:last-child .pipe-arrow{display:none}
+
+/* ── Progress ── */
+.prog-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;display:none;margin-bottom:16px}
+.prog-card.show{display:block}
+.prog-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.prog-label{font-size:14px;font-weight:600}
+.prog-pct{font-size:24px;font-weight:800;color:var(--primary)}
+.prog-bar-wrap{height:10px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:16px}
+.prog-bar{height:100%;border-radius:99px;background:linear-gradient(90deg,#2563EB,#7C3AED);transition:width .35s ease;position:relative;overflow:hidden}
+.prog-bar::after{content:'';position:absolute;inset:0 -100%;width:60%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);animation:sh 1.6s infinite}
+@keyframes sh{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
+.prog-steps{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.ps{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--light);transition:color .2s}
+.ps.act{color:var(--primary);font-weight:500}
+.ps.done{color:var(--success)}
+.ps-dot{width:19px;height:19px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;transition:all .2s}
+.ps.act .ps-dot{border-color:var(--primary);background:var(--primary-light);animation:pdot 1.2s infinite}
+.ps.done .ps-dot{border-color:var(--success);background:var(--success);color:#fff}
+@keyframes pdot{0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.3)}50%{box-shadow:0 0 0 4px rgba(37,99,235,.1)}}
+
+/* ── Queue ── */
+.queue-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:none;margin-bottom:16px}
+.queue-card.show{display:block}
+.queue-head{padding:13px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.queue-title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
+.q-badge{background:var(--primary-light);color:var(--primary);font-size:11.5px;font-weight:700;padding:2px 10px;border-radius:99px}
+.q-list{padding:6px 0}
+.q-row{display:flex;align-items:center;gap:12px;padding:11px 20px;border-bottom:1px solid #F8FAFC;transition:background .12s}
+.q-row:last-child{border-bottom:none}
+.q-row.mine{background:#F0F7FF}
+.q-num{width:27px;height:27px;border-radius:50%;background:var(--bg);font-size:12px;font-weight:700;color:var(--muted);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.q-num.proc{background:var(--primary-light);color:var(--primary)}
+.q-num.me{background:linear-gradient(135deg,#2563EB,#7C3AED);color:#fff}
+.q-inf{flex:1;min-width:0}
+.q-name-row{display:flex;align-items:center;gap:6px}
+.q-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.q-me-tag{font-size:10px;color:var(--primary);font-weight:700;background:var(--primary-light);padding:2px 8px;border-radius:99px;white-space:nowrap;flex-shrink:0}
+.q-meta{font-size:11.5px;color:var(--light);margin-top:2px}
+.stbadge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:500;white-space:nowrap;flex-shrink:0}
+.sd{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.sp{background:#EFF6FF;color:#2563EB}.sp .sd{background:#2563EB;animation:pdot 1.2s infinite}
+.sw{background:#F1F5F9;color:#475569}.sw .sd{background:#94A3B8}
+.sk{background:var(--success-bg);color:#059669}.sk .sd{background:var(--success)}
+.se{background:var(--danger-bg);color:#DC2626}.se .sd{background:var(--danger)}
+
+/* ── Log ── */
+.log-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:none;margin-bottom:16px}
+.log-card.show{display:block}
+.log-head{padding:11px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600}
+.log-body{padding:12px 16px;font-size:12px;font-family:'JetBrains Mono','Fira Code',monospace;display:flex;flex-direction:column;gap:4px;max-height:150px;overflow-y:auto}
+.ll{display:flex;gap:10px}
+.lt{color:var(--light);flex-shrink:0;width:52px}
+.lm.i{color:#2563EB}.lm.ok{color:var(--success)}.lm.w{color:var(--warning)}.lm.e{color:var(--danger)}
+
+/* ── Result ── */
+.result-card{background:var(--surface);border:1px solid #A7F3D0;border-radius:var(--radius);padding:32px;display:none;text-align:center;margin-bottom:16px}
+.result-card.show{display:block}
+.result-ico{width:68px;height:68px;background:var(--success-bg);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.result-ico svg{width:30px;height:30px;color:var(--success)}
+.result-title{font-size:22px;font-weight:800;margin-bottom:6px}
+.result-sub{font-size:13.5px;color:var(--muted);margin-bottom:22px;line-height:1.6}
+.result-file{background:var(--bg);border-radius:var(--radius-sm);padding:14px 18px;display:flex;align-items:center;gap:13px;margin-bottom:22px;text-align:left}
+.result-file-ico{width:42px;height:42px;background:var(--success-bg);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.result-file-ico svg{width:20px;height:20px;color:var(--success)}
+.result-fname{font-size:13.5px;font-weight:700}
+.result-fmeta{font-size:12px;color:var(--muted);margin-top:3px}
+.btn-dl{background:linear-gradient(135deg,#059669,#10B981);color:#fff;border:none;padding:14px 40px;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:9px;box-shadow:0 4px 18px rgba(16,185,129,.3);transition:all .18s;margin-bottom:12px}
+.btn-dl:hover{transform:translateY(-1px);box-shadow:0 6px 26px rgba(16,185,129,.4)}
+.btn-dl svg{width:17px;height:17px}
+.btn-again{background:none;border:1px solid var(--border);color:var(--muted);padding:10px 24px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
+.btn-again:hover{border-color:var(--primary);color:var(--primary)}
+
+/* ── Footer ── */
+.footer{margin-top:auto;border-top:1px solid var(--border);background:var(--surface);padding:14px 24px;text-align:center;font-size:12px;color:var(--light)}
+
+@media(max-width:620px){
+  .pipeline{grid-template-columns:1fr 1fr}
+  .pipe-step:nth-child(2){border-right:none}
+  .pipe-step:nth-child(3){border-top:1px solid var(--border)}
+  .pipe-step .pipe-arrow{display:none}
+  .prog-steps{grid-template-columns:1fr}
+  .btn-main{width:100%;justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<!-- Topbar -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-icon">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8 13h8v1.5H8V13zm0 3h5v1.5H8V16z"/></svg>
+    </div>
+    <div>
+      <span class="brand-name">QC Defect</span>
+      <span class="brand-sub">PDF → Excel</span>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <div class="status-pill">
+      <div class="live-dot"></div>
+      <span>Siap</span>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+
+  <!-- Pipeline / How it works -->
+  <div class="sec-label">Alur Proses</div>
+  <div class="pipeline" id="pipeline">
+    <div class="pipe-step" id="ps0">
+      <div class="pipe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div class="pipe-num">1</div>
+      <div class="pipe-icon">📄</div>
+      <div class="pipe-label">Upload PDF</div>
+      <div class="pipe-desc">Pilih file QC<br>maks. 15 MB</div>
+    </div>
+    <div class="pipe-step" id="ps1">
+      <div class="pipe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div class="pipe-num">2</div>
+      <div class="pipe-icon">🔄</div>
+      <div class="pipe-label">Konversi</div>
+      <div class="pipe-desc">PDF → Excel<br>via ilovepdf</div>
+    </div>
+    <div class="pipe-step" id="ps2">
+      <div class="pipe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div class="pipe-num">3</div>
+      <div class="pipe-icon">☁️</div>
+      <div class="pipe-label">Drive + Script</div>
+      <div class="pipe-desc">Upload Drive &<br>Apps Script</div>
+    </div>
+    <div class="pipe-step" id="ps3">
+      <div class="pipe-num">4</div>
+      <div class="pipe-icon">⬇️</div>
+      <div class="pipe-label">Download</div>
+      <div class="pipe-desc">Hasil langsung<br>diunduh di web</div>
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div id="upload-section">
+    <div class="sec-label">Upload File</div>
+
+    <div class="warn-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>Batas ukuran file <strong>15 MB</strong>. Hanya format <strong>PDF</strong>. File diproses satu per satu (antrian FIFO).</span>
+    </div>
+
+    <div class="upload-card" id="upload-zone" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" accept=".pdf" onchange="handleFile(this.files)">
+      <div class="upload-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+      </div>
+      <div class="upload-title">Seret & letakkan file PDF</div>
+      <div class="upload-sub">atau klik untuk memilih dari perangkat kamu</div>
+      <div class="chips">
+        <span class="chip">PDF only</span>
+        <span class="chip">Maks. 15 MB</span>
+        <span class="chip">QC Defect Report</span>
+      </div>
+    </div>
+
+    <div class="file-row" id="file-row">
+      <div class="file-ico">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5z"/></svg>
+      </div>
+      <div class="file-det">
+        <div class="file-name" id="f-name">—</div>
+        <div class="file-size" id="f-size">—</div>
+      </div>
+      <button class="btn-rm" onclick="clearFile(event)" title="Hapus">✕</button>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-main" id="btn-main" disabled onclick="startProcess()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+        Proses File
+      </button>
+    </div>
+  </div>
+
+  <!-- Progress -->
+  <div class="prog-card" id="prog-card">
+    <div class="prog-head">
+      <div class="prog-label" id="prog-label">Memproses…</div>
+      <div class="prog-pct" id="prog-pct">0%</div>
+    </div>
+    <div class="prog-bar-wrap"><div class="prog-bar" id="prog-bar" style="width:0%"></div></div>
+    <div class="prog-steps" id="prog-steps"></div>
+  </div>
+
+  <!-- Queue -->
+  <div class="queue-card" id="queue-card">
+    <div class="queue-head">
+      <div class="queue-title">
+        <div class="live-dot"></div>
+        Antrian
+      </div>
+      <div class="q-badge" id="q-badge">0 file</div>
+    </div>
+    <div class="q-list" id="q-list"></div>
+  </div>
+
+  <!-- Log -->
+  <div class="log-card" id="log-card">
+    <div class="log-head">
+      <span>Log Proses</span>
+      <span style="font-size:11px;color:var(--light);font-weight:400" id="log-elapsed">0.0 s</span>
+    </div>
+    <div class="log-body" id="log-body"></div>
+  </div>
+
+  <!-- Result -->
+  <div class="result-card" id="result-card">
+    <div class="result-ico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div class="result-title">Konversi Selesai! ✅</div>
+    <div class="result-sub">File Excel hasil QC siap diunduh langsung dari halaman ini.</div>
+    <div class="result-file" id="result-file">
+      <div class="result-file-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </div>
+      <div>
+        <div class="result-fname" id="result-fname">—</div>
+        <div class="result-fmeta" id="result-fmeta">—</div>
+      </div>
+    </div>
+    <button class="btn-dl" id="btn-dl" onclick="doDownload()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="15" x2="12" y2="4"/></svg>
+      Unduh File Excel
+    </button>
+    <br>
+    <button class="btn-again" onclick="reset()">↩ Proses file lain</button>
+  </div>
+
+</div>
+
+<footer class="footer">
+  QC Defect — PDF ke Excel &copy; 2026 &bull; ilovepdf · Google Drive · Apps Script &bull; Maks. 15 MB
+</footer>
+
+<script>
+let selFile = null, t0 = null, logIv = null, logFired = [];
+
+// ── Simulasi antrian (lain-lain) ──
+const others = [
+  {name:'QC_Batch_A_Jun.pdf',  size:'3.8 MB', status:'processing'},
+  {name:'Defect_Report_B.pdf', size:'2.1 MB', status:'waiting'},
+];
+
+const STEPS = [
+  'Validasi & upload PDF',
+  'Konversi PDF → Excel (ilovepdf)',
+  'Upload Excel ke Google Drive',
+  'Jalankan Apps Script',
+  'Proses data QC di Spreadsheet',
+  'Download hasil dari Drive',
+  'Finalisasi & siap unduh',
+];
+
+const LOGS = [
+  {d:.2, c:'i',  m:'File diterima — memulai validasi format...'},
+  {d:.5, c:'i',  m:'PDF valid (v1.7), ukuran dalam batas 15 MB'},
+  {d:.9, c:'i',  m:'Menghubungi ilovepdf via Playwright (headless)...'},
+  {d:1.6,c:'i',  m:'File di-set ke input[type=file] — upload berjalan'},
+  {d:2.4,c:'i',  m:'Menunggu tombol "Convert to EXCEL"...'},
+  {d:3.2,c:'ok', m:'Konversi selesai — mengunduh file .xlsx...'},
+  {d:4.0,c:'ok', m:'Excel tersimpan lokal'},
+  {d:4.4,c:'i',  m:'Upload ke Google Drive (Folder ID: 17NIX...)'},
+  {d:5.1,c:'ok', m:'Upload Drive berhasil — File ID didapat'},
+  {d:5.5,c:'i',  m:'POST ke Apps Script webhook...'},
+  {d:7.0,c:'i',  m:'Apps Script: memproses data QC...'},
+  {d:8.5,c:'ok', m:'Apps Script selesai — downloadUrl tersedia'},
+  {d:9.0,c:'i',  m:'Mengunduh hasil dari Drive (AuthorizedSession)...'},
+  {d:9.7,c:'ok', m:'File hasil terverifikasi (≥1000 bytes) — selesai ✅'},
+];
+
+// ── Drag & drop ──
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e=>{e.preventDefault();zone.classList.add('drag')});
+zone.addEventListener('dragleave', ()=>zone.classList.remove('drag'));
+zone.addEventListener('drop', e=>{e.preventDefault();zone.classList.remove('drag');if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files)});
+
+function handleFile(files){
+  const f = files[0];
+  if(!f.name.toLowerCase().endsWith('.pdf')) return alert('Hanya file PDF yang diterima.');
+  if(f.size > 15*1024*1024) return alert(`File terlalu besar (${(f.size/1024/1024).toFixed(1)} MB). Batas: 15 MB.`);
+  selFile = f;
+  document.getElementById('f-name').textContent = f.name;
+  document.getElementById('f-size').textContent = (f.size/1024/1024).toFixed(2)+' MB · PDF';
+  document.getElementById('file-row').classList.add('show');
+  document.getElementById('btn-main').disabled = false;
+}
+
+function clearFile(e){
+  e.stopPropagation();
+  selFile = null;
+  document.getElementById('file-input').value = '';
+  document.getElementById('file-row').classList.remove('show');
+  document.getElementById('btn-main').disabled = true;
+}
+
+// ── Start ──
+function startProcess(){
+  if(!selFile) return;
+  document.getElementById('upload-section').style.display = 'none';
+  ['prog-card','queue-card','log-card'].forEach(id=>document.getElementById(id).classList.add('show'));
+  renderPipeline(0);
+  renderQueue('processing');
+  renderSteps(-1);
+  t0 = Date.now();
+  logFired = [];
+  runLog();
+  runProg();
+}
+
+// ── Pipeline highlight ──
+function renderPipeline(active){
+  for(let i=0;i<4;i++){
+    const el = document.getElementById('ps'+i);
+    el.classList.remove('active-step','done-step');
+    if(i < active) el.classList.add('done-step');
+    else if(i === active) el.classList.add('active-step');
+  }
+}
+
+// ── Steps ──
+function renderSteps(ai){
+  document.getElementById('prog-steps').innerHTML = STEPS.map((s,i)=>{
+    const c = i<ai?'done':i===ai?'act':'';
+    const d = i<ai?'✓':'';
+    return `<div class="ps ${c}"><div class="ps-dot">${d}</div><span>${s}</span></div>`;
+  }).join('');
+}
+
+// ── Queue ──
+function renderQueue(myStatus){
+  const mine = {name: selFile?selFile.name:'file.pdf', size: selFile?(selFile.size/1024/1024).toFixed(2)+' MB':'', status: myStatus, mine:true};
+  const all = [mine, ...others];
+  const active = all.filter(x=>x.status!=='done'&&x.status!=='error').length;
+  document.getElementById('q-badge').textContent = active+' file';
+
+  const bmap = {
+    processing:`<span class="stbadge sp"><span class="sd"></span>Diproses</span>`,
+    waiting:   `<span class="stbadge sw"><span class="sd"></span>Menunggu</span>`,
+    done:      `<span class="stbadge sk"><span class="sd"></span>Selesai</span>`,
+    error:     `<span class="stbadge se"><span class="sd"></span>Gagal</span>`,
+  };
+
+  document.getElementById('q-list').innerHTML = all.map((q,i)=>{
+    const pc = q.mine?'me':q.status==='processing'?'proc':'';
+    const rc = q.mine?'q-row mine':'q-row';
+    return `<div class="${rc}">
+      <div class="q-num ${pc}">${i+1}</div>
+      <div class="q-inf">
+        <div class="q-name-row">
+          <span class="q-name">${q.name}</span>
+          ${q.mine?`<span class="q-me-tag">▶ Milikmu</span>`:''}
+        </div>
+        <div class="q-meta">${q.size}</div>
+      </div>
+      ${bmap[q.status]||''}
+    </div>`;
+  }).join('');
+}
+
+// ── Progress ──
+function runProg(){
+  const total = 10000;
+  const bar = document.getElementById('prog-bar');
+  const pct = document.getElementById('prog-pct');
+  const lbl = document.getElementById('prog-label');
+
+  const iv = setInterval(()=>{
+    const el = Date.now()-t0;
+    const p = Math.min(100, Math.round(el/total*100));
+    bar.style.width = p+'%';
+    pct.textContent = p+'%';
+
+    const si = Math.min(Math.floor(el/(total/STEPS.length)), STEPS.length-1);
+    renderSteps(si);
+
+    // Update pipeline indicator
+    if(p<15) renderPipeline(0);
+    else if(p<40) renderPipeline(1);
+    else if(p<75) renderPipeline(2);
+    else renderPipeline(3);
+
+    lbl.textContent = p<100 ? 'Sedang memproses…' : 'Hampir selesai…';
+
+    if(p>=100){
+      clearInterval(iv);
+      renderSteps(STEPS.length);
+      renderPipeline(4);
+      setTimeout(showResult, 500);
+    }
+  }, 80);
+}
+
+// ── Log ──
+function runLog(){
+  const body = document.getElementById('log-body');
+  logIv = setInterval(()=>{
+    const el = (Date.now()-t0)/1000;
+    document.getElementById('log-elapsed').textContent = el.toFixed(1)+' s';
+    LOGS.forEach(l=>{
+      if(el>=l.d && !logFired.includes(l.d)){
+        logFired.push(l.d);
+        const line = document.createElement('div');
+        line.className = 'll';
+        line.innerHTML = `<span class="lt">${el.toFixed(1)}s</span><span class="lm ${l.c}">${l.m}</span>`;
+        body.appendChild(line);
+        body.scrollTop = body.scrollHeight;
+      }
+    });
+    if(el>=10) clearInterval(logIv);
+  }, 100);
+}
+
+// ── Result ──
+function showResult(){
+  document.getElementById('prog-card').classList.remove('show');
+  renderQueue('done');
+  const base = selFile ? selFile.name.replace(/\.pdf$/i,'') : 'QC_Output';
+  const outName = base+'_Result.xlsx';
+  document.getElementById('result-fname').textContent = outName;
+  document.getElementById('result-fmeta').textContent = 'Excel · Data QC Defect · Siap diunduh';
+  document.getElementById('btn-dl').setAttribute('data-fn', outName);
+  document.getElementById('result-card').classList.add('show');
+}
+
+function doDownload(){
+  const btn = document.getElementById('btn-dl');
+  const fn = btn.getAttribute('data-fn')||'QC_Result.xlsx';
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:17px;height:17px"><polyline points="20 6 9 17 4 12"/></svg> Mengunduh…`;
+  btn.style.opacity = '.75';
+  setTimeout(()=>{
+    const blob = new Blob(['QC Excel Result'], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download=fn; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:17px;height:17px"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="15" x2="12" y2="4"/></svg> Unduh Lagi`;
+    btn.style.opacity = '1';
+  }, 700);
+}
+
+function reset(){
+  selFile = null;
+  document.getElementById('file-input').value = '';
+  document.getElementById('file-row').classList.remove('show');
+  document.getElementById('btn-main').disabled = true;
+  ['prog-card','queue-card','log-card','result-card'].forEach(id=>document.getElementById(id).classList.remove('show'));
+  document.getElementById('upload-section').style.display = '';
+  document.getElementById('prog-bar').style.width = '0%';
+  document.getElementById('prog-pct').textContent = '0%';
+  document.getElementById('log-body').innerHTML = '';
+  document.getElementById('prog-steps').innerHTML = '';
+  renderPipeline(-1);
+  if(logIv) clearInterval(logIv);
+}
+</script>
+</body>
+</html>
