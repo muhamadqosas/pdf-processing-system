@@ -560,7 +560,7 @@ async function refreshQueuePreview() {
       const posLabel = isProc ? '▶' : ('#' + (job.queue_position || (idx + 1)));
       const numClass = isProc ? 'q-num proc' : (isMine ? 'q-num me' : 'q-num');
       const sizeMb   = (typeof job.file_size_mb === 'number') ? job.file_size_mb.toFixed(2) + ' MB' : '';
-      const displayName = isMine ? (job.filename || myJobMap[job.job_id] || 'File Anda') : 'File User Lain';
+      const displayName = isMine ? (myJobMap[job.job_id] || job.filename || 'File Anda') : 'File User Lain';
       const meTag = isMine ? '<span class="q-me-tag">&#9654; Milikmu</span>' : '';
       return '<div class="q-row' + (isMine ? ' mine' : '') + '">' +
         '<div class="' + numClass + '">' + posLabel + '</div>' +
@@ -648,7 +648,7 @@ async function fetchAndRenderQueue(myStatus) {
     const numClass = isProc ? 'q-num proc' : (isMine ? 'q-num me' : 'q-num');
 
     // Nama file: nama asli jika milik user, "File User Lain" jika bukan
-    const displayName = isMine ? (job.filename || myJobMap[job.job_id] || 'File Anda') : 'File User Lain';
+    const displayName = isMine ? (myJobMap[job.job_id] || job.filename || 'File Anda') : 'File User Lain';
 
     // Ukuran file
     const sizeMb = (typeof job.file_size_mb === 'number') ? job.file_size_mb.toFixed(2) + ' MB' : '';
