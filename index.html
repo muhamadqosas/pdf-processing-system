@@ -934,22 +934,24 @@ function showResult() {
     return !completedJobIds.includes(j.job_id);
   });
 
-  if (pending.length > 0) {
-    // Update title & sub sementara (hanya file yg sudah selesai)
-    document.getElementById('result-title').textContent = completedJobIds.length + ' File Selesai - ' + pending.length + ' File Tersisa';
-    document.getElementById('result-sub').textContent =
-      'File berikutnya sedang dalam antrian. Progress akan otomatis dilanjutkan.';
+  // Selalu render daftar download yang sudah selesai & tampilkan result-card
+  renderResultList();
+  document.getElementById('result-card').classList.add('show');
 
-    // Mulai monitor job berikutnya
+  if (pending.length > 0) {
+    // Masih ada file tersisa - update judul informatif
+    document.getElementById('result-title').textContent =
+      completedJobIds.length + ' File Selesai — ' + pending.length + ' File Tersisa';
+    document.getElementById('result-sub').textContent =
+      'File berikutnya sedang diproses. Tombol unduh akan muncul seiring selesainya tiap file.';
+
+    // Mulai monitor job berikutnya tanpa menyembunyikan result-card
     const nextJob = pending[0];
     setTimeout(function() {
-      // Sembunyikan result-card dulu sebelum mulai job baru
-      document.getElementById('result-card').classList.remove('show');
-
       jobId = nextJob.job_id;
       selFile = selFiles.find(function(f) { return f.name === nextJob.filename; }) || selFiles[0];
 
-      // Reset progress & log untuk job baru
+      // Reset progress & log untuk job baru, tapi result-card tetap tampil
       t0 = Date.now();
       lastStatus = null;
       lastStage  = null;
@@ -965,9 +967,7 @@ function showResult() {
       startPolling();
     }, 800);
   } else {
-    // Semua file selesai - render daftar download dan tampilkan result-card
-    renderResultList();
-    document.getElementById('result-card').classList.add('show');
+    // Semua file selesai
     document.getElementById('result-title').textContent = 'Semua File Selesai! ✅';
     document.getElementById('result-sub').textContent =
       uploadedJobs.length > 1
