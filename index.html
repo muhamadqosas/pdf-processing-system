@@ -296,7 +296,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
     <div class="prog-bar-wrap"><div class="prog-bar" id="prog-bar" style="width:0%"></div></div>
     <div class="prog-steps" id="prog-steps"></div>
     <div class="cancel-row">
-      <button class="btn-cancel" id="btn-cancel" onclick="cancelProcess()">
+      <button class="btn-cancel" id="btn-cancel" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
         Batalkan
       </button>
@@ -895,31 +895,54 @@ function stopPolling() {
   if (pollIv) { clearInterval(pollIv); pollIv = null; }
 }
 
-// ── Cancel Process ──
+// ── initCancelButton: reinit tombol Batalkan ke state bersih, terikat ke jobId tertentu ──
+// Dipanggil setiap kali job baru mulai dipantau (startProcess, showResult→nextJob, recovery)
+// Ini satu-satunya cara tombol Batalkan mendapat handler — TIDAK ada onclick di HTML
+function initCancelButton(forJobId) {
+  const btn = document.getElementById('btn-cancel');
+  if (!btn) return;
+
+  // Lepas semua handler lama dengan replace node
+  const fresh = btn.cloneNode(true);
+  btn.parentNode.replaceChild(fresh, btn);
+
+  // Reset visual ke state bersih
+  fresh.disabled  = false;
+  fresh.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">' +
+      '<circle cx="12" cy="12" r="10"/>' +
+      '<line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>' +
+    '</svg> Batalkan';
+
+  // Pasang handler baru yang terikat ke forJobId
+  fresh.addEventListener('click', function() {
+    cancelJobById(forJobId);
+  });
+}
+
+// ── cancelJobById: batalkan file tertentu by job_id, tidak memengaruhi file lain ──
+// Menggantikan cancelProcess() lama yang bersifat global.
 // Syarat mutlak:
-//   - Hanya berjalan jika dipanggil langsung dari klik tombol (cancelRequested === null sebelumnya)
-//   - cancelRequested diisi dengan job_id milik user yg menekan tombol — bukan boolean global
-//   - Tidak ada timeout / interval / event lain yang boleh memanggil fungsi ini
-// Alur:
-//   1. Set cancelRequested = jobId saat tombol diklik, disable tombol, hentikan polling & elapsed
-//   2. Kirim permintaan cancel ke backend (DELETE /job/<id>, fallback POST /cancel/<id>)
-//   3. Poll GET /status/<id> sampai status = 'cancelled' | 'error' | timeout 15 dtk
-//   4. Hapus job dari uploadedJobs & completedJobIds agar antrian/log sinkron
-//   5. Baru reset UI — TIDAK pernah dipanggil lewat setTimeout yang lain
-async function cancelProcess() {
-  // ── Guard 1: hanya boleh dipanggil sekali (tombol sudah di-disable setelah pertama klik) ──
+//   - cancelRequested diisi dengan job_id milik file yang diklik — bukan boolean global
+//   - Hanya file dengan job_id = forJobId yang dibatalkan
+//   - Setelah selesai: semua state, polling, timer, dan cache file tersebut dibersihkan penuh
+//   - Upload berikutnya selalu memulai state baru yang bersih
+async function cancelJobById(forJobId) {
   const btn = document.getElementById('btn-cancel');
   if (!btn || btn.disabled) return;
 
-  // ── Guard 2: tidak boleh ada cancel yang sedang berjalan ──
+  // Guard: jangan batalkan jika job yang aktif bukan forJobId
+  // (bisa terjadi jika tombol lama masih terpasang setelah job berganti)
+  if (jobId !== forJobId) return;
+
+  // Guard: tidak boleh ada cancel lain yang sedang berjalan
   if (cancelRequested !== null) return;
 
-  // ── Guard 3: harus ada job aktif ──
-  if (!jobId) { reset(); return; }
+  // Guard: harus ada job aktif
+  if (!forJobId) { reset(); return; }
 
-  // cancelRequested = job_id milik user ini — bukan true global
-  const cancelledJobId = jobId;
-  cancelRequested = cancelledJobId;
+  // Kunci cancel ke job_id ini
+  cancelRequested = forJobId;
 
   btn.disabled = true;
   btn.innerHTML =
@@ -928,22 +951,22 @@ async function cancelProcess() {
       '<line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>' +
     '</svg> Membatalkan…';
 
-  // Hentikan polling & elapsed timer HANYA untuk job ini
+  // Hentikan polling & elapsed timer untuk job ini
   stopPolling();
   stopElapsed();
 
-  addLog('[WARN] Permintaan pembatalan dikirim…', 'w');
+  addLog('[WARN] Permintaan pembatalan dikirim untuk: ' + forJobId, 'w');
   setProgress(currentProgress, 'Membatalkan…');
 
   // ── 1. Kirim permintaan cancel ke backend ──
   try {
-    let res = await fetch(api('/job/' + encodeURIComponent(cancelledJobId)), {
+    let res = await fetch(api('/job/' + encodeURIComponent(forJobId)), {
       method: 'DELETE',
       signal: AbortSignal.timeout(5000)
     });
     // Fallback: beberapa backend pakai POST /cancel/<id>
     if (!res.ok) {
-      res = await fetch(api('/cancel/' + encodeURIComponent(cancelledJobId)), {
+      res = await fetch(api('/cancel/' + encodeURIComponent(forJobId)), {
         method: 'POST',
         signal: AbortSignal.timeout(5000)
       });
@@ -955,8 +978,8 @@ async function cancelProcess() {
     addLog('[WARN] Endpoint cancel tidak tersedia, menunggu konfirmasi…', 'w');
   }
 
-  // ── 2. Poll GET /status/<id> sampai status terkonfirmasi atau timeout ──
-  // Polling ini HANYA untuk job cancelledJobId — tidak menyentuh state global lain
+  // ── 2. Poll GET /status/<id> sampai terkonfirmasi atau timeout ──
+  // Polling ini HANYA untuk forJobId — tidak menyentuh state global lain
   const POLL_INTERVAL_MS = 1500;
   const MAX_POLLS        = 10;
   const FINAL_STATUSES   = new Set(['cancelled', 'error', 'completed']);
@@ -967,11 +990,11 @@ async function cancelProcess() {
   for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
     await new Promise(function(r) { setTimeout(r, POLL_INTERVAL_MS); });
 
-    // Jika cancelRequested sudah di-null-kan (misal refresh/reset paksa), hentikan
-    if (cancelRequested !== cancelledJobId) break;
+    // Jika cancelRequested sudah di-null-kan (reset paksa dari luar), hentikan
+    if (cancelRequested !== forJobId) return;
 
     try {
-      const res  = await fetch(api('/status/' + encodeURIComponent(cancelledJobId)),
+      const res  = await fetch(api('/status/' + encodeURIComponent(forJobId)),
                                { signal: AbortSignal.timeout(4000) });
       const data = await res.json();
       const st   = data.status || '';
@@ -988,14 +1011,14 @@ async function cancelProcess() {
     }
   }
 
-  // Jika cancelRequested sudah diganti oleh proses lain selama polling, abort
-  if (cancelRequested !== cancelledJobId) return;
+  // Jika cancelRequested sudah diganti selama polling, abort (reset paksa sudah handle)
+  if (cancelRequested !== forJobId) return;
 
   // ── 3. Sinkronkan state: hapus job yang dibatalkan dari daftar ──
-  uploadedJobs    = uploadedJobs.filter(function(j) { return j.job_id !== cancelledJobId; });
-  completedJobIds = completedJobIds.filter(function(id) { return id !== cancelledJobId; });
+  uploadedJobs    = uploadedJobs.filter(function(j) { return j.job_id !== forJobId; });
+  completedJobIds = completedJobIds.filter(function(id) { return id !== forJobId; });
 
-  // ── 4. Feedback & reset UI ──
+  // ── 4. Feedback ──
   if (!confirmed) {
     addLog('[WARN] Konfirmasi cancel timeout — UI direset', 'w');
     showToast('⚠️ Timeout konfirmasi, proses mungkin masih berjalan di server', 'info');
@@ -1009,18 +1032,18 @@ async function cancelProcess() {
     // Race condition: job sudah selesai sebelum cancel terkonfirmasi → tampilkan hasil
     addLog('[INFO] Job sudah selesai sebelum dibatalkan', 'i');
     showToast('✅ Job sudah selesai sebelum dibatalkan', 'ok');
-    uploadedJobs.push({ job_id: cancelledJobId, filename: (selFile && selFile.name) || cancelledJobId, status: 'completed' });
-    completedJobIds.push(cancelledJobId);
+    uploadedJobs.push({ job_id: forJobId, filename: (selFile && selFile.name) || forJobId, status: 'completed' });
+    completedJobIds.push(forJobId);
     cancelRequested = null;
     saveSession();
     setTimeout(showResult, 300);
     return;
   }
 
-  // ── 5. Reset UI setelah konfirmasi diterima ──
-  cancelRequested = null;
+  // ── 5. Bersihkan seluruh state file ini, lalu reset UI ke kondisi bersih ──
+  cancelRequested = null;  // wajib null sebelum reset agar polling/guard tidak stuck
   clearSession();
-  reset();
+  reset();                 // reset() akan reinit tombol Batalkan via full DOM rebuild
 }
 
 // ── Elapsed timer ──
@@ -1091,6 +1114,9 @@ async function startProcess() {
   cancelRequested = null;
   startElapsed();
 
+  // Reinit tombol Batalkan ke state bersih, terikat ke job pertama
+  initCancelButton(jobId);
+
   document.getElementById('log-body').innerHTML = '';
   setProgress(0, 'File masuk antrian…');
   renderSteps(-1);
@@ -1152,6 +1178,10 @@ function showResult() {
       lastStatus = null;
       lastStage  = null;
       cancelRequested = null;
+
+      // Reinit tombol Batalkan ke state bersih, terikat ke job berikutnya ini
+      initCancelButton(nextJob.job_id);
+
       startElapsed();
       document.getElementById('log-body').innerHTML = '';
       setProgress(0, 'File berikutnya masuk antrian…');
@@ -1241,6 +1271,18 @@ function reset() {
   ['prog-card', 'queue-card', 'log-card', 'result-card'].forEach(function(id) {
     document.getElementById(id).classList.remove('show');
   });
+  // Reset tombol Batalkan ke state awal (disabled, tidak ada handler lama)
+  const btnCancel = document.getElementById('btn-cancel');
+  if (btnCancel) {
+    const freshCancel = btnCancel.cloneNode(true); // hapus semua event listener
+    freshCancel.disabled = true;
+    freshCancel.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">' +
+        '<circle cx="12" cy="12" r="10"/>' +
+        '<line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>' +
+      '</svg> Batalkan';
+    btnCancel.parentNode.replaceChild(freshCancel, btnCancel);
+  }
   document.getElementById('upload-section').style.display = '';
   document.getElementById('prog-bar').style.width = '0%';
   document.getElementById('prog-pct').textContent = '0%';
@@ -1497,6 +1539,8 @@ function resetBackendUrl() {
     startElapsed();
     applyBackendData({ status: liveStatus, progress: liveStatus === 'processing' ? 10 : 0, stage: null });
     handleStatusOnce(liveStatus);
+    // Reinit tombol Batalkan ke state bersih untuk job yang di-recover
+    initCancelButton(jobId);
     startPolling();
     showToast('↩ Sesi dilanjutkan setelah refresh', 'info');
     return;
