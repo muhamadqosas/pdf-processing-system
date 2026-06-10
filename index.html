@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QC Defect — PDF ke Excel</title>
+<title>QC Defect - PDF ke Excel</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -214,7 +214,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
       </div>
       <div class="upload-title">Seret & letakkan file PDF</div>
-      <div class="upload-sub">atau klik untuk memilih dari perangkat kamu — bisa pilih beberapa sekaligus</div>
+      <div class="upload-sub">atau klik untuk memilih dari perangkat kamu - bisa pilih beberapa sekaligus</div>
       <div class="chips">
         <span class="chip">PDF only</span>
         <span class="chip">Maks. 15 MB / file</span>
@@ -236,7 +236,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
           <div class="live-dot"></div>
           Antrian Aktif
         </div>
-        <div id="qp-badge" style="background:var(--primary-light);color:var(--primary);font-size:11.5px;font-weight:700;padding:2px 10px;border-radius:99px">— file</div>
+        <div id="qp-badge" style="background:var(--primary-light);color:var(--primary);font-size:11.5px;font-weight:700;padding:2px 10px;border-radius:99px">- file</div>
       </div>
       <div id="qp-list" style="padding:6px 0"></div>
     </div>
@@ -318,7 +318,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
     </div>
     <div class="result-title" id="result-title">Konversi Selesai! ✅</div>
     <div class="result-sub" id="result-sub">File Excel hasil QC siap diunduh langsung dari halaman ini.</div>
-    <!-- Daftar file hasil — diisi oleh JS -->
+    <!-- Daftar file hasil - diisi oleh JS -->
     <div id="result-files-list" style="width:100%;margin-bottom:20px"></div>
     <br>
     <button class="btn-again" onclick="reset()">↩ Proses file lain</button>
@@ -327,12 +327,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 </div>
 
 <footer class="footer">
-  QC Defect — PDF ke Excel &copy; 2026 &bull; ilovepdf · Google Drive · Apps Script &bull; Maks. 15 MB
+  QC Defect - PDF ke Excel &copy; 2026 &bull; ilovepdf · Google Drive · Apps Script &bull; Maks. 15 MB
 </footer>
 
 <script>
 // ══════════════════════════════════════════════
-//  CONFIG — satu-satunya tempat untuk URL backend
+//  CONFIG - satu-satunya tempat untuk URL backend
 // ══════════════════════════════════════════════
 const CONFIG = {
   DEFAULT_API_BASE: 'https://api.qcdefect.online',
@@ -348,7 +348,7 @@ function api(path) {
 
 // ── State ──
 let selFiles = [];       // array File objects yang valid (multi-upload)
-let selFile = null;      // alias ke selFiles[0] — backward compat untuk showResult/download
+let selFile = null;      // alias ke selFiles[0] - backward compat untuk showResult/download
 let jobId = null;        // job_id dari upload terakhir yang sedang dipantau
 let uploadedJobs = [];   // [{job_id, filename, status}] dari response multi-upload
 let t0 = null;
@@ -488,7 +488,7 @@ function renderFileErrors(errors) {
   wrap.innerHTML = errors.map(function(e) {
     return '<div class="warn-box" style="margin-bottom:5px">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
-      '<span><strong>' + escHtml(e.name) + '</strong> — ' + escHtml(e.reason) + '</span>' +
+      '<span><strong>' + escHtml(e.name) + '</strong> - ' + escHtml(e.reason) + '</span>' +
     '</div>';
   }).join('');
 }
@@ -574,7 +574,7 @@ async function refreshQueuePreview() {
       '</div>';
     }).join('');
   } catch (_) {
-    // Backend belum ready — sembunyikan saja
+    // Backend belum ready - sembunyikan saja
     document.getElementById('queue-preview-card').style.display = 'none';
   }
 }
@@ -690,7 +690,7 @@ async function fetchAndRenderQueue(myStatus) {
       summaryLines.push(myAhead + ' file sebelum giliran Anda');
       summaryLines.push('Total ukuran sebelum Anda: ' + (myAheadSize || 0).toFixed(2) + ' MB');
     } else {
-      summaryLines.push('Anda berikutnya — worker sedang memproses');
+      summaryLines.push('Anda berikutnya - worker sedang memproses');
     }
 
     rows.push(
@@ -706,7 +706,7 @@ async function fetchAndRenderQueue(myStatus) {
         'border:1px solid #BFDBFE;border-radius:9px;' +
         'font-size:12.5px;color:var(--primary);line-height:1.8">' +
         '<strong>File Anda sedang diproses</strong><br>' +
-        'Worker aktif — pantau progress di atas' +
+        'Worker aktif - pantau progress di atas' +
       '</div>'
     );
   }
@@ -772,7 +772,7 @@ function applyBackendData(data) {
     );
     setProgress(progress, label);
   } else {
-    // Tidak ada progress dari backend — set label saja tanpa mengubah angka
+    // Tidak ada progress dari backend - set label saja tanpa mengubah angka
     if (stage) {
       document.getElementById('prog-label').textContent = stage;
     }
@@ -903,7 +903,7 @@ async function startProcess() {
   addLog('[INFO] ' + successJobs.length + ' file berhasil diupload ke antrian', 'ok');
   if (failedFiles.length > 0) {
     failedFiles.forEach(function(e) {
-      addLog('[WARN] Gagal: ' + e.name + ' — ' + e.reason, 'w');
+      addLog('[WARN] Gagal: ' + e.name + ' - ' + e.reason, 'w');
     });
   }
   successJobs.forEach(function(j, idx) {
@@ -936,7 +936,7 @@ function showResult() {
 
   if (pending.length > 0) {
     // Update title & sub sementara (hanya file yg sudah selesai)
-    document.getElementById('result-title').textContent = completedJobIds.length + ' File Selesai — ' + pending.length + ' File Tersisa';
+    document.getElementById('result-title').textContent = completedJobIds.length + ' File Selesai - ' + pending.length + ' File Tersisa';
     document.getElementById('result-sub').textContent =
       'File berikutnya sedang dalam antrian. Progress akan otomatis dilanjutkan.';
 
@@ -965,7 +965,7 @@ function showResult() {
       startPolling();
     }, 800);
   } else {
-    // Semua file selesai — render daftar download dan tampilkan result-card
+    // Semua file selesai - render daftar download dan tampilkan result-card
     renderResultList();
     document.getElementById('result-card').classList.add('show');
     document.getElementById('result-title').textContent = 'Semua File Selesai! ✅';
