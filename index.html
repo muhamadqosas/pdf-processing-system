@@ -159,6 +159,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .btn-again{background:none;border:1px solid var(--border);color:var(--muted);padding:10px 24px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
 .btn-again:hover{border-color:var(--primary);color:var(--primary)}
 
+/* ── Cancel Button ── */
+.btn-cancel{background:none;border:1.5px solid #FCA5A5;color:var(--danger);padding:9px 26px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .18s;font-family:inherit}
+.btn-cancel:hover:not(:disabled){background:var(--danger-bg);border-color:var(--danger)}
+.btn-cancel:disabled{opacity:.4;cursor:not-allowed}
+.btn-cancel svg{width:14px;height:14px}
+.cancel-row{display:flex;justify-content:center;margin-top:14px}
+
 /* ── Footer ── */
 .footer{margin-top:auto;border-top:1px solid var(--border);background:var(--surface);padding:14px 24px;text-align:center;font-size:12px;color:var(--light)}
 
@@ -288,6 +295,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
     </div>
     <div class="prog-bar-wrap"><div class="prog-bar" id="prog-bar" style="width:0%"></div></div>
     <div class="prog-steps" id="prog-steps"></div>
+    <div class="cancel-row">
+      <button class="btn-cancel" id="btn-cancel" onclick="cancelProcess()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        Batalkan
+      </button>
+    </div>
   </div>
 
   <!-- Queue -->
@@ -827,6 +840,50 @@ function startPolling() {
 
 function stopPolling() {
   if (pollIv) { clearInterval(pollIv); pollIv = null; }
+}
+
+// ── Cancel Process ──
+async function cancelProcess() {
+  const btn = document.getElementById('btn-cancel');
+  if (!btn || btn.disabled) return;
+
+  btn.disabled = true;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:14px;height:14px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Membatalkan…';
+
+  // Hentikan polling & timer dulu
+  stopPolling();
+  stopElapsed();
+
+  // Kirim request cancel ke backend (coba DELETE dulu, fallback POST)
+  if (jobId) {
+    try {
+      let res = await fetch(api('/job/' + encodeURIComponent(jobId)), {
+        method: 'DELETE',
+        signal: AbortSignal.timeout(5000)
+      });
+      // Beberapa backend pakai POST /cancel/<id>
+      if (!res.ok) {
+        res = await fetch(api('/cancel/' + encodeURIComponent(jobId)), {
+          method: 'POST',
+          signal: AbortSignal.timeout(5000)
+        });
+      }
+      if (res.ok) {
+        showToast('🚫 Proses dibatalkan', 'info');
+        addLog('[WARN] Proses dibatalkan oleh pengguna', 'w');
+      } else {
+        showToast('⚠️ Permintaan batal dikirim', 'info');
+        addLog('[WARN] Cancel dikirim (status: ' + res.status + ')', 'w');
+      }
+    } catch (_) {
+      // Backend mungkin tidak punya endpoint cancel - tetap reset UI
+      showToast('↩ Proses dihentikan', 'info');
+      addLog('[WARN] Proses dihentikan oleh pengguna', 'w');
+    }
+  }
+
+  // Reset UI ke upload section setelah 600ms agar log sempat terbaca
+  setTimeout(reset, 600);
 }
 
 // ── Elapsed timer ──
