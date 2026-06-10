@@ -359,11 +359,42 @@ function api(path) {
   return CONFIG.API_BASE + path;
 }
 
+// ── Session persistence key ──
+const SESSION_KEY = 'qcdefect_session';
+
+// ── Simpan session ke sessionStorage (hanya data yg serializable) ──
+function saveSession() {
+  try {
+    const s = {
+      jobId:          jobId,
+      uploadedJobs:   uploadedJobs,
+      completedJobIds: completedJobIds,
+      t0:             t0
+    };
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  } catch (_) {}
+}
+
+// ── Hapus session dari sessionStorage ──
+function clearSession() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch (_) {}
+}
+
+// ── Baca session dari sessionStorage ──
+function loadSession() {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (_) { return null; }
+}
+
 // ── State ──
 let selFiles = [];       // array File objects yang valid (multi-upload)
 let selFile = null;      // alias ke selFiles[0] - backward compat untuk showResult/download
 let jobId = null;        // job_id dari upload terakhir yang sedang dipantau
 let uploadedJobs = [];   // [{job_id, filename, status}] dari response multi-upload
+let completedJobIds = []; // job_id yang sudah selesai - di sini bukan di tengah kode
 let t0 = null;
 let pollIv = null;
 let elapsedIv = null;
@@ -371,7 +402,9 @@ let currentProgress = 0;
 let lastStatus = null;
 let lastStage = null;
 let queuePreviewIv = null; // interval refresh queue-preview di upload section
-let cancelRequested = false; // true HANYA saat user menekan tombol Batalkan secara manual
+// cancelRequested: ID job milik user yg sedang dibatalkan, atau null
+// (bukan boolean — agar cancel tidak bisa "bocor" ke job lain)
+let cancelRequested = null;
 
 // ── Steps (visual) ──
 const STEPS = [
@@ -821,21 +854,27 @@ function applyBackendData(data) {
 // ── Polling GET /status/<job_id> setiap 2 detik ──
 function startPolling() {
   if (pollIv) clearInterval(pollIv);
+  const pollingForJobId = jobId; // rekam job yang sedang dipolling
   pollIv = setInterval(async function() {
-    // Jika user sedang membatalkan, polling reguler tidak boleh ikut-ikutan mengubah state
-    if (cancelRequested) return;
+    // Jika job yang dipolling sudah tidak aktif (diganti atau di-cancel), stop
+    if (jobId !== pollingForJobId) { clearInterval(pollIv); pollIv = null; return; }
+    // Jika sedang dibatalkan untuk job ini, biarkan cancelProcess yang handle
+    if (cancelRequested === pollingForJobId) return;
     try {
-      const res = await fetch(api('/status/' + jobId));
+      const res = await fetch(api('/status/' + pollingForJobId));
       const data = await res.json();
 
-      // Guard kedua: cek lagi setelah await (async gap)
-      if (cancelRequested) return;
+      // Guard setelah await: job bisa berubah selama request berlangsung
+      if (jobId !== pollingForJobId) return;
+      if (cancelRequested === pollingForJobId) return;
 
       // Terapkan progress & stage dari backend (selalu, setiap poll)
       applyBackendData(data);
 
       // Log & UI one-shot per perubahan status
       handleStatusOnce(data.status);
+
+      saveSession(); // simpan state terkini setiap poll
 
       if (data.status === 'waiting' || data.status === 'processing') {
         fetchAndRenderQueue(data.status);
@@ -846,6 +885,7 @@ function startPolling() {
       } else if (data.status === 'error') {
         fetchAndRenderQueue('error');
         stopPolling();
+        saveSession();
       }
     } catch (_) {}
   }, 2000);
@@ -857,22 +897,29 @@ function stopPolling() {
 
 // ── Cancel Process ──
 // Syarat mutlak:
-//   - Hanya berjalan jika dipanggil langsung dari klik tombol (cancelRequested === true)
+//   - Hanya berjalan jika dipanggil langsung dari klik tombol (cancelRequested === null sebelumnya)
+//   - cancelRequested diisi dengan job_id milik user yg menekan tombol — bukan boolean global
 //   - Tidak ada timeout / interval / event lain yang boleh memanggil fungsi ini
 // Alur:
-//   1. Set flag cancelRequested, disable tombol, hentikan polling & elapsed milik job ini
+//   1. Set cancelRequested = jobId saat tombol diklik, disable tombol, hentikan polling & elapsed
 //   2. Kirim permintaan cancel ke backend (DELETE /job/<id>, fallback POST /cancel/<id>)
 //   3. Poll GET /status/<id> sampai status = 'cancelled' | 'error' | timeout 15 dtk
 //   4. Hapus job dari uploadedJobs & completedJobIds agar antrian/log sinkron
-//   5. Baru reset UI ke halaman upload — TIDAK pernah dipanggil lewat setTimeout yang lain
+//   5. Baru reset UI — TIDAK pernah dipanggil lewat setTimeout yang lain
 async function cancelProcess() {
   // ── Guard 1: hanya boleh dipanggil sekali (tombol sudah di-disable setelah pertama klik) ──
   const btn = document.getElementById('btn-cancel');
   if (!btn || btn.disabled) return;
 
-  // ── Guard 2: flag manual — jika belum di-set berarti bukan dari klik user ──
-  // (flag diset DI SINI, bukan di tempat lain, jadi tidak bisa di-trigger otomatis)
-  cancelRequested = true;
+  // ── Guard 2: tidak boleh ada cancel yang sedang berjalan ──
+  if (cancelRequested !== null) return;
+
+  // ── Guard 3: harus ada job aktif ──
+  if (!jobId) { reset(); return; }
+
+  // cancelRequested = job_id milik user ini — bukan true global
+  const cancelledJobId = jobId;
+  cancelRequested = cancelledJobId;
 
   btn.disabled = true;
   btn.innerHTML =
@@ -880,10 +927,6 @@ async function cancelProcess() {
       '<circle cx="12" cy="12" r="10"/>' +
       '<line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>' +
     '</svg> Membatalkan…';
-
-  // Simpan job_id milik user yang menekan tombol ini saja
-  // (jobId bisa berubah jika multi-job, tapi kita hanya batalkan yang sedang aktif saat tombol diklik)
-  const cancelledJobId = jobId;
 
   // Hentikan polling & elapsed timer HANYA untuk job ini
   stopPolling();
@@ -893,79 +936,67 @@ async function cancelProcess() {
   setProgress(currentProgress, 'Membatalkan…');
 
   // ── 1. Kirim permintaan cancel ke backend ──
-  if (cancelledJobId) {
-    try {
-      let res = await fetch(api('/job/' + encodeURIComponent(cancelledJobId)), {
-        method: 'DELETE',
+  try {
+    let res = await fetch(api('/job/' + encodeURIComponent(cancelledJobId)), {
+      method: 'DELETE',
+      signal: AbortSignal.timeout(5000)
+    });
+    // Fallback: beberapa backend pakai POST /cancel/<id>
+    if (!res.ok) {
+      res = await fetch(api('/cancel/' + encodeURIComponent(cancelledJobId)), {
+        method: 'POST',
         signal: AbortSignal.timeout(5000)
       });
-      // Fallback: beberapa backend pakai POST /cancel/<id>
-      if (!res.ok) {
-        res = await fetch(api('/cancel/' + encodeURIComponent(cancelledJobId)), {
-          method: 'POST',
-          signal: AbortSignal.timeout(5000)
-        });
-      }
-      if (!res.ok) {
-        addLog('[WARN] Cancel dikirim (HTTP ' + res.status + ')', 'w');
-      }
-    } catch (_) {
-      // Backend tidak punya endpoint cancel - tetap lanjut polling konfirmasi
-      addLog('[WARN] Endpoint cancel tidak tersedia, menunggu konfirmasi…', 'w');
     }
+    if (!res.ok) {
+      addLog('[WARN] Cancel dikirim (HTTP ' + res.status + ')', 'w');
+    }
+  } catch (_) {
+    addLog('[WARN] Endpoint cancel tidak tersedia, menunggu konfirmasi…', 'w');
   }
 
   // ── 2. Poll GET /status/<id> sampai status terkonfirmasi atau timeout ──
-  // Polling ini HANYA untuk job cancelledJobId, bukan polling global
+  // Polling ini HANYA untuk job cancelledJobId — tidak menyentuh state global lain
   const POLL_INTERVAL_MS = 1500;
-  const MAX_POLLS        = 10;   // maks ~15 detik tunggu
+  const MAX_POLLS        = 10;
   const FINAL_STATUSES   = new Set(['cancelled', 'error', 'completed']);
 
   let confirmed   = false;
   let finalStatus = null;
 
-  if (cancelledJobId) {
-    for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
-      await new Promise(function(r) { setTimeout(r, POLL_INTERVAL_MS); });
+  for (let attempt = 0; attempt < MAX_POLLS; attempt++) {
+    await new Promise(function(r) { setTimeout(r, POLL_INTERVAL_MS); });
 
-      // Jika user sudah reset atau halaman berubah state, hentikan loop
-      if (!cancelRequested) break;
+    // Jika cancelRequested sudah di-null-kan (misal refresh/reset paksa), hentikan
+    if (cancelRequested !== cancelledJobId) break;
 
-      try {
-        const res  = await fetch(api('/status/' + encodeURIComponent(cancelledJobId)),
-                                 { signal: AbortSignal.timeout(4000) });
-        const data = await res.json();
-        const st   = data.status || '';
+    try {
+      const res  = await fetch(api('/status/' + encodeURIComponent(cancelledJobId)),
+                               { signal: AbortSignal.timeout(4000) });
+      const data = await res.json();
+      const st   = data.status || '';
 
-        // Perbarui antrian di UI selama menunggu konfirmasi
-        fetchAndRenderQueue(st);
+      fetchAndRenderQueue(st);
 
-        if (FINAL_STATUSES.has(st)) {
-          confirmed   = true;
-          finalStatus = st;
-          break;
-        }
-      } catch (_) {
-        // Abaikan error jaringan sementara, coba lagi
+      if (FINAL_STATUSES.has(st)) {
+        confirmed   = true;
+        finalStatus = st;
+        break;
       }
+    } catch (_) {
+      // Abaikan error jaringan sementara
     }
-  } else {
-    // Tidak ada jobId aktif - langsung anggap selesai
-    confirmed = true;
   }
 
-  // Jika flag cancelRequested sudah di-reset oleh pihak lain selama polling, batalkan proses cancel ini
-  if (!cancelRequested) return;
+  // Jika cancelRequested sudah diganti oleh proses lain selama polling, abort
+  if (cancelRequested !== cancelledJobId) return;
 
   // ── 3. Sinkronkan state: hapus job yang dibatalkan dari daftar ──
-  if (cancelledJobId) {
-    uploadedJobs    = uploadedJobs.filter(function(j) { return j.job_id !== cancelledJobId; });
-    completedJobIds = completedJobIds.filter(function(id) { return id !== cancelledJobId; });
-  }
+  uploadedJobs    = uploadedJobs.filter(function(j) { return j.job_id !== cancelledJobId; });
+  completedJobIds = completedJobIds.filter(function(id) { return id !== cancelledJobId; });
 
   // ── 4. Feedback & reset UI ──
   if (!confirmed) {
-    // Timeout - beri tahu user, lalu reset UI
     addLog('[WARN] Konfirmasi cancel timeout — UI direset', 'w');
     showToast('⚠️ Timeout konfirmasi, proses mungkin masih berjalan di server', 'info');
   } else if (finalStatus === 'cancelled') {
@@ -978,18 +1009,17 @@ async function cancelProcess() {
     // Race condition: job sudah selesai sebelum cancel terkonfirmasi → tampilkan hasil
     addLog('[INFO] Job sudah selesai sebelum dibatalkan', 'i');
     showToast('✅ Job sudah selesai sebelum dibatalkan', 'ok');
-    if (cancelledJobId) {
-      uploadedJobs.push({ job_id: cancelledJobId, filename: (selFile && selFile.name) || cancelledJobId, status: 'completed' });
-      completedJobIds.push(cancelledJobId);
-    }
-    cancelRequested = false;
+    uploadedJobs.push({ job_id: cancelledJobId, filename: (selFile && selFile.name) || cancelledJobId, status: 'completed' });
+    completedJobIds.push(cancelledJobId);
+    cancelRequested = null;
+    saveSession();
     setTimeout(showResult, 300);
     return;
   }
 
   // ── 5. Reset UI setelah konfirmasi diterima ──
-  // Reset dilakukan LANGSUNG di sini (bukan via setTimeout) agar tidak ada jeda yang bisa di-abuse
-  cancelRequested = false;
+  cancelRequested = null;
+  clearSession();
   reset();
 }
 
@@ -1047,6 +1077,7 @@ async function startProcess() {
   // Ada minimal 1 file berhasil → mulai proses job pertama
   uploadedJobs = successJobs;
   jobId        = successJobs[0].job_id;
+  completedJobIds = []; // bersihkan list selesai untuk batch upload baru
   selFile      = filesToUpload.find(function(f) { return f.name === successJobs[0].filename; }) || filesToUpload[0];
 
   document.getElementById('upload-section').style.display = 'none';
@@ -1057,7 +1088,7 @@ async function startProcess() {
   t0 = Date.now();
   lastStatus = null;
   lastStage  = null;
-  cancelRequested = false;
+  cancelRequested = null;
   startElapsed();
 
   document.getElementById('log-body').innerHTML = '';
@@ -1078,13 +1109,11 @@ async function startProcess() {
 
   applyBackendData({ status: successJobs[0].status || 'waiting', progress: 0, stage: null });
   handleStatusOnce(successJobs[0].status || 'waiting');
+  saveSession(); // simpan session setelah upload berhasil
   startPolling();
 }
 
 // ── Result ──
-// completedJobIds: set job_id yang sudah selesai
-let completedJobIds = [];
-
 function showResult() {
   stopElapsed();
   document.getElementById('prog-card').classList.remove('show');
@@ -1093,6 +1122,8 @@ function showResult() {
   if (jobId && !completedJobIds.includes(jobId)) {
     completedJobIds.push(jobId);
   }
+
+  saveSession(); // persist setelah job selesai
 
   // Cek apakah masih ada job lain yang belum selesai
   const pending = uploadedJobs.filter(function(j) {
@@ -1120,7 +1151,7 @@ function showResult() {
       t0 = Date.now();
       lastStatus = null;
       lastStage  = null;
-      cancelRequested = false;
+      cancelRequested = null;
       startElapsed();
       document.getElementById('log-body').innerHTML = '';
       setProgress(0, 'File berikutnya masuk antrian…');
@@ -1130,6 +1161,7 @@ function showResult() {
       addLog('[INFO] Melanjutkan ke file: ' + nextJob.filename, 'i');
       addLog('[INFO] Job ID: ' + nextJob.job_id, 'i');
 
+      saveSession(); // simpan sebelum polling job berikutnya
       startPolling();
     }, 800);
   } else {
@@ -1197,7 +1229,8 @@ function reset() {
   lastStage       = null;
   currentProgress = 0;
   completedJobIds = [];
-  cancelRequested = false;
+  cancelRequested = null; // null bukan false — sesuai type baru
+  clearSession();         // hapus session agar tidak di-recover setelah selesai
   document.getElementById('file-input').value = '';
   renderFileList();
   document.getElementById('file-errors-wrap').style.display = 'none';
@@ -1350,8 +1383,9 @@ function resetBackendUrl() {
   })();
 }
 
-// ── Init: cek status backend saat halaman dibuka ──
+// ── Init: cek status backend + recovery session saat halaman dibuka ──
 (async function init() {
+  // 1. Cek status backend
   try {
     const res = await fetch(api('/status'), { signal: AbortSignal.timeout(5000) });
     const data = await res.json();
@@ -1359,7 +1393,116 @@ function resetBackendUrl() {
   } catch (_) {
     setStatusPill(false);
   }
-  // Mulai queue preview di upload section
+
+  // 2. Coba recovery session dari sessionStorage
+  const session = loadSession();
+  if (session && session.uploadedJobs && session.uploadedJobs.length > 0 && session.jobId) {
+    // Ada session tersimpan — cek apakah masih ada job yang aktif (waiting/processing)
+    // atau ada job selesai yang belum di-download
+    const jobs = session.uploadedJobs;
+    const done = session.completedJobIds || [];
+
+    // Cek status semua job ke backend
+    let anyActive = false;
+    let liveStatuses = {}; // job_id → status dari backend
+
+    await Promise.all(jobs.map(async function(j) {
+      try {
+        const r = await fetch(api('/status/' + encodeURIComponent(j.job_id)),
+                              { signal: AbortSignal.timeout(5000) });
+        const d = await r.json();
+        liveStatuses[j.job_id] = d.status || 'unknown';
+        if (d.status === 'waiting' || d.status === 'processing') anyActive = true;
+      } catch (_) {
+        liveStatuses[j.job_id] = 'unknown';
+      }
+    }));
+
+    // Tentukan apakah perlu recovery atau reset
+    // Kondisi reset: semua job sudah final (completed/error/cancelled/unknown) DAN sudah di-completedJobIds
+    const allFinal = jobs.every(function(j) {
+      const st = liveStatuses[j.job_id];
+      return st === 'error' || st === 'cancelled' || st === 'unknown' ||
+             (st === 'completed' && done.includes(j.job_id));
+    });
+
+    if (allFinal && !anyActive) {
+      // Semua selesai/error — bersihkan session, tampilkan halaman awal
+      clearSession();
+      startQueuePreview();
+      return;
+    }
+
+    // Ada job yang masih aktif atau selesai tapi belum di-download → recover
+    uploadedJobs    = jobs;
+    completedJobIds = done;
+    t0              = session.t0 || Date.now();
+    cancelRequested = null;
+    lastStatus      = null;
+    lastStage       = null;
+
+    // Tentukan jobId yang akan dipantau:
+    // Prioritas: job yang masih waiting/processing
+    // Fallback: job pertama yang belum di-completedJobIds
+    const activeJob = jobs.find(function(j) {
+      const st = liveStatuses[j.job_id];
+      return st === 'waiting' || st === 'processing';
+    });
+    const pendingJob = jobs.find(function(j) { return !done.includes(j.job_id); });
+    const recoveredJob = activeJob || pendingJob;
+
+    if (!recoveredJob) {
+      // Semua job selesai — tampilkan result
+      jobId = jobs[jobs.length - 1].job_id;
+      document.getElementById('upload-section').style.display = 'none';
+      ['queue-card', 'log-card'].forEach(function(id) {
+        document.getElementById(id).classList.add('show');
+      });
+      addLog('[INFO] Session dipulihkan setelah refresh', 'i');
+      addLog('[INFO] Semua file selesai', 'ok');
+      showResult();
+      return;
+    }
+
+    jobId = recoveredJob.job_id;
+
+    // Tampilkan UI processing
+    document.getElementById('upload-section').style.display = 'none';
+    ['prog-card', 'queue-card', 'log-card'].forEach(function(id) {
+      document.getElementById(id).classList.add('show');
+    });
+
+    // Jika ada job yang sudah selesai sebelumnya, tampilkan result-card juga
+    if (done.length > 0) {
+      renderResultList();
+      document.getElementById('result-card').classList.add('show');
+      const remaining = jobs.filter(function(j) { return !done.includes(j.job_id); });
+      document.getElementById('result-title').textContent =
+        done.length + ' File Selesai - ' + remaining.length + ' File Tersisa';
+      document.getElementById('result-sub').textContent =
+        'Halaman dipulihkan. File berikutnya sedang diproses.';
+    }
+
+    const liveStatus = liveStatuses[jobId] || 'waiting';
+    setProgress(0, liveStatus === 'processing' ? 'Sedang diproses…' : 'Menunggu dalam antrian…');
+    renderSteps(0);
+    renderPipeline(liveStatus === 'processing' ? 1 : 0);
+
+    addLog('[INFO] ↩ Session dipulihkan setelah refresh', 'i');
+    addLog('[INFO] Memantau job: ' + recoveredJob.filename + ' (' + liveStatus + ')', 'i');
+    if (done.length > 0) {
+      addLog('[INFO] ' + done.length + ' file sudah selesai sebelumnya', 'ok');
+    }
+
+    startElapsed();
+    applyBackendData({ status: liveStatus, progress: liveStatus === 'processing' ? 10 : 0, stage: null });
+    handleStatusOnce(liveStatus);
+    startPolling();
+    showToast('↩ Sesi dilanjutkan setelah refresh', 'info');
+    return;
+  }
+
+  // 3. Tidak ada session aktif — mulai normal
   startQueuePreview();
 })();
 </script>
