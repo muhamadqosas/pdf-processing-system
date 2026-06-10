@@ -205,32 +205,40 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 
     <div class="warn-box">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span>Batas ukuran file <strong>15 MB</strong>. Hanya format <strong>PDF</strong>. File diproses satu per satu (antrian FIFO).</span>
+      <span>Batas ukuran file <strong>15 MB per file</strong>. Hanya format <strong>PDF</strong>. Maks. <strong>10 file</strong> sekaligus. Setiap file jadi job terpisah dalam antrian FIFO.</span>
     </div>
 
     <div class="upload-card" id="upload-zone" onclick="document.getElementById('file-input').click()">
-      <input type="file" id="file-input" accept=".pdf" onchange="handleFile(this.files)">
+      <input type="file" id="file-input" accept=".pdf" multiple onchange="handleFile(this.files)">
       <div class="upload-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
       </div>
       <div class="upload-title">Seret & letakkan file PDF</div>
-      <div class="upload-sub">atau klik untuk memilih dari perangkat kamu</div>
+      <div class="upload-sub">atau klik untuk memilih dari perangkat kamu — bisa pilih beberapa sekaligus</div>
       <div class="chips">
         <span class="chip">PDF only</span>
-        <span class="chip">Maks. 15 MB</span>
+        <span class="chip">Maks. 15 MB / file</span>
+        <span class="chip">Maks. 10 file</span>
         <span class="chip">QC Defect Report</span>
       </div>
     </div>
 
-    <div class="file-row" id="file-row">
-      <div class="file-ico">
-        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5z"/></svg>
+    <!-- Multi-file list -->
+    <div id="file-list-wrap" style="display:none;margin-bottom:14px"></div>
+
+    <!-- Error file (terlalu besar / bukan PDF) -->
+    <div id="file-errors-wrap" style="display:none;margin-bottom:10px"></div>
+
+    <!-- Queue preview: tampilkan antrian aktif saat upload section terbuka -->
+    <div id="queue-preview-card" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px">
+      <div style="padding:11px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px">
+          <div class="live-dot"></div>
+          Antrian Aktif
+        </div>
+        <div id="qp-badge" style="background:var(--primary-light);color:var(--primary);font-size:11.5px;font-weight:700;padding:2px 10px;border-radius:99px">— file</div>
       </div>
-      <div class="file-det">
-        <div class="file-name" id="f-name">—</div>
-        <div class="file-size" id="f-size">—</div>
-      </div>
-      <button class="btn-rm" onclick="clearFile(event)" title="Hapus">✕</button>
+      <div id="qp-list" style="padding:6px 0"></div>
     </div>
 
     <div class="action-row">
@@ -350,14 +358,17 @@ function api(path) {
 }
 
 // ── State ──
-let selFile = null;
-let jobId = null;
+let selFiles = [];       // array File objects yang valid (multi-upload)
+let selFile = null;      // alias ke selFiles[0] — backward compat untuk showResult/download
+let jobId = null;        // job_id dari upload terakhir yang sedang dipantau
+let uploadedJobs = [];   // [{job_id, filename, status}] dari response multi-upload
 let t0 = null;
 let pollIv = null;
 let elapsedIv = null;
 let currentProgress = 0;
 let lastStatus = null;
 let lastStage = null;
+let queuePreviewIv = null; // interval refresh queue-preview di upload section
 
 // ── Steps (visual) ──
 const STEPS = [
@@ -421,27 +432,164 @@ zone.addEventListener('dragleave', function() { zone.classList.remove('drag'); }
 zone.addEventListener('drop', function(e) {
   e.preventDefault();
   zone.classList.remove('drag');
-  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files);
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files);
 });
 
-// ── File handling ──
+// ── File handling (multi) ──
+const MAX_FILES = 10;
+const MAX_MB    = 15;
+
 function handleFile(files) {
-  const f = files[0];
-  if (!f.name.toLowerCase().endsWith('.pdf')) return alert('Hanya file PDF yang diterima.');
-  if (f.size > 15 * 1024 * 1024) return alert('File terlalu besar (' + (f.size/1024/1024).toFixed(1) + ' MB). Batas: 15 MB.');
-  selFile = f;
-  document.getElementById('f-name').textContent = f.name;
-  document.getElementById('f-size').textContent = (f.size/1024/1024).toFixed(2) + ' MB · PDF';
-  document.getElementById('file-row').classList.add('show');
-  document.getElementById('btn-main').disabled = false;
+  const valid   = [];
+  const errors  = [];
+
+  Array.from(files).slice(0, MAX_FILES + 5).forEach(function(f) {
+    if (!f.name.toLowerCase().endsWith('.pdf')) {
+      errors.push({ name: f.name, reason: 'Bukan file PDF' });
+    } else if (f.size > MAX_MB * 1024 * 1024) {
+      errors.push({ name: f.name, reason: 'Ukuran ' + (f.size/1024/1024).toFixed(1) + ' MB > batas ' + MAX_MB + ' MB' });
+    } else {
+      valid.push(f);
+    }
+  });
+
+  if (valid.length > MAX_FILES) {
+    errors.push(...valid.splice(MAX_FILES).map(function(f) {
+      return { name: f.name, reason: 'Melebihi batas ' + MAX_FILES + ' file sekaligus' };
+    }));
+  }
+
+  selFiles = valid;
+  selFile  = selFiles[0] || null;
+
+  renderFileList();
+  renderFileErrors(errors);
+  document.getElementById('btn-main').disabled = (selFiles.length === 0);
+  if (selFiles.length > 0) {
+    document.getElementById('btn-main').innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>' +
+      ' Proses ' + selFiles.length + ' File';
+  } else {
+    document.getElementById('btn-main').innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>' +
+      ' Proses File';
+  }
 }
 
+function renderFileList() {
+  const wrap = document.getElementById('file-list-wrap');
+  if (selFiles.length === 0) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  wrap.style.display = 'block';
+  wrap.innerHTML = selFiles.map(function(f, i) {
+    return '<div class="file-row show" style="margin-bottom:6px">' +
+      '<div class="file-ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5z"/></svg></div>' +
+      '<div class="file-det">' +
+        '<div class="file-name">' + escHtml(f.name) + '</div>' +
+        '<div class="file-size">' + (f.size/1024/1024).toFixed(2) + ' MB · PDF</div>' +
+      '</div>' +
+      '<button class="btn-rm" onclick="removeFile(' + i + ')" title="Hapus">✕</button>' +
+    '</div>';
+  }).join('');
+}
+
+function renderFileErrors(errors) {
+  const wrap = document.getElementById('file-errors-wrap');
+  if (!errors || errors.length === 0) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  wrap.style.display = 'block';
+  wrap.innerHTML = errors.map(function(e) {
+    return '<div class="warn-box" style="margin-bottom:5px">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+      '<span><strong>' + escHtml(e.name) + '</strong> — ' + escHtml(e.reason) + '</span>' +
+    '</div>';
+  }).join('');
+}
+
+function removeFile(idx) {
+  selFiles.splice(idx, 1);
+  selFile = selFiles[0] || null;
+  if (selFiles.length === 0) {
+    document.getElementById('file-input').value = '';
+    document.getElementById('btn-main').disabled = true;
+    document.getElementById('btn-main').innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Proses File';
+  } else {
+    document.getElementById('btn-main').innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Proses ' + selFiles.length + ' File';
+  }
+  renderFileList();
+}
+
+// ── clearFile: backward compat (tidak lagi dipanggil dari HTML, tapi jaga2) ──
 function clearFile(e) {
-  e.stopPropagation();
+  if (e) e.stopPropagation();
+  selFiles = [];
   selFile = null;
   document.getElementById('file-input').value = '';
-  document.getElementById('file-row').classList.remove('show');
+  renderFileList();
   document.getElementById('btn-main').disabled = true;
+}
+
+// ── Queue preview di upload section ──
+async function refreshQueuePreview() {
+  try {
+    const res  = await fetch(api('/queue'));
+    const data = await res.json();
+    const card  = document.getElementById('queue-preview-card');
+    const badge = document.getElementById('qp-badge');
+    const list  = document.getElementById('qp-list');
+
+    const jobs  = data.active_jobs || [];
+    const activeCount = (data.waiting || 0) + (data.processing || 0);
+
+    if (activeCount === 0 && jobs.length === 0) {
+      card.style.display = 'none';
+      return;
+    }
+
+    card.style.display = 'block';
+    badge.textContent  = activeCount + ' file';
+
+    const bmap = {
+      processing: '<span class="stbadge sp"><span class="sd"></span>Sedang Diproses</span>',
+      waiting:    '<span class="stbadge sw"><span class="sd"></span>Menunggu</span>',
+      completed:  '<span class="stbadge sk"><span class="sd"></span>Selesai</span>',
+      error:      '<span class="stbadge se"><span class="sd"></span>Gagal</span>',
+    };
+
+    if (jobs.length === 0) {
+      list.innerHTML = '<div style="padding:14px 20px;font-size:12.5px;color:var(--light)">Antrian kosong</div>';
+      return;
+    }
+
+    list.innerHTML = jobs.map(function(job, idx) {
+      const isProc  = job.status === 'processing';
+      const posLabel = isProc ? '▶' : ('#' + (job.queue_position || (idx + 1)));
+      const numClass = isProc ? 'q-num proc' : 'q-num';
+      const sizeMb   = (typeof job.file_size_mb === 'number') ? job.file_size_mb.toFixed(2) + ' MB' : '';
+      return '<div class="q-row">' +
+        '<div class="' + numClass + '">' + posLabel + '</div>' +
+        '<div class="q-inf">' +
+          '<div class="q-name">File User Lain</div>' +
+          '<div class="q-meta">' + sizeMb + '</div>' +
+        '</div>' +
+        (bmap[job.status] || '') +
+      '</div>';
+    }).join('');
+  } catch (_) {
+    // Backend belum ready — sembunyikan saja
+    document.getElementById('queue-preview-card').style.display = 'none';
+  }
+}
+
+function startQueuePreview() {
+  refreshQueuePreview();
+  if (queuePreviewIv) clearInterval(queuePreviewIv);
+  queuePreviewIv = setInterval(refreshQueuePreview, 4000);
+}
+
+function stopQueuePreview() {
+  if (queuePreviewIv) { clearInterval(queuePreviewIv); queuePreviewIv = null; }
+  document.getElementById('queue-preview-card').style.display = 'none';
 }
 
 // ── Pipeline highlight ──
@@ -691,12 +839,49 @@ function stopElapsed() {
   if (elapsedIv) { clearInterval(elapsedIv); elapsedIv = null; }
 }
 
-// ── Start Process ──
+// ── Start Process (multi-file) ──
 async function startProcess() {
-  if (!selFile) return;
+  if (selFiles.length === 0) return;
+  stopQueuePreview();
+
   const btn = document.getElementById('btn-main');
   btn.disabled = true;
-  btn.textContent = 'Mengupload…';
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Mengupload…';
+
+  // Upload semua file, masing-masing jadi job terpisah
+  const filesToUpload = selFiles.slice();
+  const successJobs   = [];
+  const failedFiles   = [];
+
+  // Upload satu per satu (sequential agar tidak membanjiri server)
+  for (let i = 0; i < filesToUpload.length; i++) {
+    const f = filesToUpload[i];
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Upload ' + (i+1) + '/' + filesToUpload.length + '…';
+    const form = new FormData();
+    form.append('file', f);
+    try {
+      const res = await fetch(api('/upload'), { method: 'POST', body: form });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      if (!data.success) throw new Error(data.message || 'Upload gagal');
+      successJobs.push({ job_id: data.job_id, filename: f.name, status: data.status || 'waiting' });
+    } catch (err) {
+      failedFiles.push({ name: f.name, reason: err.message });
+    }
+  }
+
+  // Jika semua gagal: kembalikan ke upload section, tampilkan error
+  if (successJobs.length === 0) {
+    btn.disabled = false;
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Proses File';
+    renderFileErrors(failedFiles);
+    return;
+  }
+
+  // Ada minimal 1 file berhasil → mulai proses job pertama
+  uploadedJobs = successJobs;
+  jobId        = successJobs[0].job_id;
+  selFile      = filesToUpload.find(function(f) { return f.name === successJobs[0].filename; }) || filesToUpload[0];
 
   document.getElementById('upload-section').style.display = 'none';
   ['prog-card', 'queue-card', 'log-card'].forEach(function(id) {
@@ -705,39 +890,28 @@ async function startProcess() {
 
   t0 = Date.now();
   lastStatus = null;
-  lastStage = null;
-  jobId = null;
+  lastStage  = null;
   startElapsed();
 
   document.getElementById('log-body').innerHTML = '';
-  setProgress(0, 'Mengupload file…');
+  setProgress(0, 'File masuk antrian…');
   renderSteps(-1);
   renderPipeline(0);
 
-  addLog('[INFO] Memulai upload file…', 'i');
-
-  const form = new FormData();
-  form.append('file', selFile);
-
-  try {
-    const res = await fetch(api('/upload'), { method: 'POST', body: form });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
-    if (!data.success) throw new Error(data.message || 'Upload gagal');
-    jobId = data.job_id;
-    applyBackendData({ status: data.status || 'waiting', progress: data.progress || 0, stage: data.stage || null });
-    handleStatusOnce(data.status || 'waiting');
-    startPolling();
-  } catch (err) {
-    stopElapsed();
-    document.getElementById('upload-section').style.display = '';
-    ['prog-card', 'queue-card', 'log-card'].forEach(function(id) {
-      document.getElementById(id).classList.remove('show');
+  addLog('[INFO] ' + successJobs.length + ' file berhasil diupload ke antrian', 'ok');
+  if (failedFiles.length > 0) {
+    failedFiles.forEach(function(e) {
+      addLog('[WARN] Gagal: ' + e.name + ' — ' + e.reason, 'w');
     });
-    btn.disabled = false;
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Proses File';
-    alert('Upload gagal: ' + err.message + '\nPastikan backend online dan coba lagi.');
   }
+  successJobs.forEach(function(j, idx) {
+    addLog('[INFO] Job #' + (idx+1) + ': ' + j.filename + ' → ' + j.job_id, 'i');
+  });
+  addLog('[INFO] Memantau job pertama: ' + successJobs[0].filename, 'i');
+
+  applyBackendData({ status: successJobs[0].status || 'waiting', progress: 0, stage: null });
+  handleStatusOnce(successJobs[0].status || 'waiting');
+  startPolling();
 }
 
 // ── Result ──
@@ -746,7 +920,12 @@ function showResult() {
   document.getElementById('prog-card').classList.remove('show');
   const outName = selFile ? selFile.name.replace(/\.pdf$/i, '') + '_Result.xlsx' : 'Hasil QC.xlsx';
   document.getElementById('result-fname').textContent = outName;
-  document.getElementById('result-fmeta').textContent = 'Excel · Data QC Defect · Siap diunduh';
+  // Info tambahan jika multi-job
+  const remaining = uploadedJobs.filter(function(j) { return j.job_id !== jobId; }).length;
+  const meta = remaining > 0
+    ? 'Excel · Data QC Defect · Siap diunduh · +' + remaining + ' file lain masih di antrian'
+    : 'Excel · Data QC Defect · Siap diunduh';
+  document.getElementById('result-fmeta').textContent = meta;
   document.getElementById('result-card').classList.add('show');
 }
 
@@ -767,13 +946,17 @@ function doDownload() {
 function reset() {
   stopPolling();
   stopElapsed();
-  selFile = null;
-  jobId = null;
-  lastStatus = null;
-  lastStage = null;
+  selFiles      = [];
+  selFile       = null;
+  uploadedJobs  = [];
+  jobId         = null;
+  lastStatus    = null;
+  lastStage     = null;
   currentProgress = 0;
   document.getElementById('file-input').value = '';
-  document.getElementById('file-row').classList.remove('show');
+  renderFileList();
+  document.getElementById('file-errors-wrap').style.display = 'none';
+  document.getElementById('file-errors-wrap').innerHTML = '';
   const btn = document.getElementById('btn-main');
   btn.disabled = true;
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Proses File';
@@ -787,6 +970,8 @@ function reset() {
   document.getElementById('log-elapsed').textContent = '0.0 s';
   document.getElementById('prog-steps').innerHTML = '';
   renderPipeline(-1);
+  // Mulai queue preview lagi setelah reset
+  startQueuePreview();
 }
 
 // ── Toast notification ──
@@ -929,6 +1114,8 @@ function resetBackendUrl() {
   } catch (_) {
     setStatusPill(false);
   }
+  // Mulai queue preview di upload section
+  startQueuePreview();
 })();
 </script>
 </body>
