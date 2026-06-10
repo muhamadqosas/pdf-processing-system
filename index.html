@@ -195,38 +195,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 
 <div class="page">
 
-  <!-- Pipeline / How it works -->
-  <div class="sec-label">Alur Proses</div>
-  <div class="pipeline" id="pipeline">
-    <div class="pipe-step" id="ps0">
-      <div class="pipe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
-      <div class="pipe-num">1</div>
-      <div class="pipe-icon">📄</div>
-      <div class="pipe-label">Upload PDF</div>
-      <div class="pipe-desc">Pilih file QC<br>maks. 15 MB</div>
-    </div>
-    <div class="pipe-step" id="ps1">
-      <div class="pipe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
-      <div class="pipe-num">2</div>
-      <div class="pipe-icon">🔄</div>
-      <div class="pipe-label">Konversi</div>
-      <div class="pipe-desc">PDF → Excel<br>via ilovepdf</div>
-    </div>
-    <div class="pipe-step" id="ps2">
-      <div class="pipe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
-      <div class="pipe-num">3</div>
-      <div class="pipe-icon">☁️</div>
-      <div class="pipe-label">Drive + Script</div>
-      <div class="pipe-desc">Upload Drive &<br>Apps Script</div>
-    </div>
-    <div class="pipe-step" id="ps3">
-      <div class="pipe-num">4</div>
-      <div class="pipe-icon">⬇️</div>
-      <div class="pipe-label">Download</div>
-      <div class="pipe-desc">Hasil langsung<br>diunduh di web</div>
-    </div>
-  </div>
-
   <!-- Upload -->
   <div id="upload-section">
     <div class="sec-label">Upload File</div>
@@ -266,6 +234,37 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
         Proses File
       </button>
+    </div>
+  </div>
+
+  <!-- Pipeline / Alur Proses -->
+  <div class="pipeline" id="pipeline" style="margin-bottom:16px">
+    <div class="pipe-step" id="ps0">
+      <div class="pipe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div class="pipe-num">1</div>
+      <div class="pipe-icon">📄</div>
+      <div class="pipe-label">Upload PDF</div>
+      <div class="pipe-desc">Pilih file QC<br>maks. 15 MB</div>
+    </div>
+    <div class="pipe-step" id="ps1">
+      <div class="pipe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div class="pipe-num">2</div>
+      <div class="pipe-icon">🔄</div>
+      <div class="pipe-label">Konversi</div>
+      <div class="pipe-desc">PDF → Excel<br>via ilovepdf</div>
+    </div>
+    <div class="pipe-step" id="ps2">
+      <div class="pipe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div class="pipe-num">3</div>
+      <div class="pipe-icon">☁️</div>
+      <div class="pipe-label">Drive + Script</div>
+      <div class="pipe-desc">Upload Drive &<br>Apps Script</div>
+    </div>
+    <div class="pipe-step" id="ps3">
+      <div class="pipe-num">4</div>
+      <div class="pipe-icon">⬇️</div>
+      <div class="pipe-label">Download</div>
+      <div class="pipe-desc">Hasil langsung<br>diunduh di web</div>
     </div>
   </div>
 
@@ -331,14 +330,20 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 </footer>
 
 <script>
-let selFile = null, t0 = null, logIv = null, logFired = [];
+// ── Config ──
+const API_BASE = 'https://internship-imagination-arkansas-resources.trycloudflare.com';
 
-// ── Simulasi antrian (lain-lain) ──
-const others = [
-  {name:'QC_Batch_A_Jun.pdf',  size:'3.8 MB', status:'processing'},
-  {name:'Defect_Report_B.pdf', size:'2.1 MB', status:'waiting'},
-];
+// ── State ──
+let selFile = null;
+let jobId = null;
+let t0 = null;
+let pollIv = null;
+let progAnimIv = null;
+let elapsedIv = null;
+let currentProgress = 0;
+let lastStatus = null;
 
+// ── Steps (visual) ──
 const STEPS = [
   'Validasi & upload PDF',
   'Konversi PDF → Excel (ilovepdf)',
@@ -349,41 +354,73 @@ const STEPS = [
   'Finalisasi & siap unduh',
 ];
 
-const LOGS = [
-  {d:.2, c:'i',  m:'File diterima — memulai validasi format...'},
-  {d:.5, c:'i',  m:'PDF valid (v1.7), ukuran dalam batas 15 MB'},
-  {d:.9, c:'i',  m:'Menghubungi ilovepdf via Playwright (headless)...'},
-  {d:1.6,c:'i',  m:'File di-set ke input[type=file] — upload berjalan'},
-  {d:2.4,c:'i',  m:'Menunggu tombol "Convert to EXCEL"...'},
-  {d:3.2,c:'ok', m:'Konversi selesai — mengunduh file .xlsx...'},
-  {d:4.0,c:'ok', m:'Excel tersimpan lokal'},
-  {d:4.4,c:'i',  m:'Upload ke Google Drive (Folder ID: 17NIX...)'},
-  {d:5.1,c:'ok', m:'Upload Drive berhasil — File ID didapat'},
-  {d:5.5,c:'i',  m:'POST ke Apps Script webhook...'},
-  {d:7.0,c:'i',  m:'Apps Script: memproses data QC...'},
-  {d:8.5,c:'ok', m:'Apps Script selesai — downloadUrl tersedia'},
-  {d:9.0,c:'i',  m:'Mengunduh hasil dari Drive (AuthorizedSession)...'},
-  {d:9.7,c:'ok', m:'File hasil terverifikasi (≥1000 bytes) — selesai ✅'},
-];
+// ── Helpers ──
+function ts() {
+  return ((Date.now() - (t0 || Date.now())) / 1000).toFixed(1) + 's';
+}
+
+function addLog(msg, type) {
+  type = type || 'i';
+  const body = document.getElementById('log-body');
+  const line = document.createElement('div');
+  line.className = 'll';
+  line.innerHTML = '<span class="lt">' + ts() + '</span><span class="lm ' + type + '">' + msg + '</span>';
+  body.appendChild(line);
+  body.scrollTop = body.scrollHeight;
+}
+
+function setProgress(pct, label) {
+  const p = Math.max(0, Math.min(100, Math.round(pct)));
+  document.getElementById('prog-bar').style.width = p + '%';
+  document.getElementById('prog-pct').textContent = p + '%';
+  if (label) document.getElementById('prog-label').textContent = label;
+  currentProgress = p;
+}
+
+function setStatusPill(online) {
+  const pill = document.querySelector('.status-pill');
+  const dot = pill.querySelector('.live-dot');
+  const span = pill.querySelector('span');
+  if (online) {
+    pill.style.background = 'var(--success-bg)';
+    pill.style.borderColor = '#A7F3D0';
+    pill.style.color = '#059669';
+    dot.style.background = 'var(--success)';
+    dot.style.animation = '';
+    span.textContent = 'Siap';
+  } else {
+    pill.style.background = 'var(--danger-bg)';
+    pill.style.borderColor = '#FCA5A5';
+    pill.style.color = '#DC2626';
+    dot.style.background = 'var(--danger)';
+    dot.style.animation = 'none';
+    span.textContent = 'Offline';
+  }
+}
 
 // ── Drag & drop ──
 const zone = document.getElementById('upload-zone');
-zone.addEventListener('dragover', e=>{e.preventDefault();zone.classList.add('drag')});
-zone.addEventListener('dragleave', ()=>zone.classList.remove('drag'));
-zone.addEventListener('drop', e=>{e.preventDefault();zone.classList.remove('drag');if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files)});
+zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', function() { zone.classList.remove('drag'); });
+zone.addEventListener('drop', function(e) {
+  e.preventDefault();
+  zone.classList.remove('drag');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files);
+});
 
-function handleFile(files){
+// ── File handling ──
+function handleFile(files) {
   const f = files[0];
-  if(!f.name.toLowerCase().endsWith('.pdf')) return alert('Hanya file PDF yang diterima.');
-  if(f.size > 15*1024*1024) return alert(`File terlalu besar (${(f.size/1024/1024).toFixed(1)} MB). Batas: 15 MB.`);
+  if (!f.name.toLowerCase().endsWith('.pdf')) return alert('Hanya file PDF yang diterima.');
+  if (f.size > 15 * 1024 * 1024) return alert('File terlalu besar (' + (f.size/1024/1024).toFixed(1) + ' MB). Batas: 15 MB.');
   selFile = f;
   document.getElementById('f-name').textContent = f.name;
-  document.getElementById('f-size').textContent = (f.size/1024/1024).toFixed(2)+' MB · PDF';
+  document.getElementById('f-size').textContent = (f.size/1024/1024).toFixed(2) + ' MB · PDF';
   document.getElementById('file-row').classList.add('show');
   document.getElementById('btn-main').disabled = false;
 }
 
-function clearFile(e){
+function clearFile(e) {
   e.stopPropagation();
   selFile = null;
   document.getElementById('file-input').value = '';
@@ -391,165 +428,311 @@ function clearFile(e){
   document.getElementById('btn-main').disabled = true;
 }
 
-// ── Start ──
-function startProcess(){
-  if(!selFile) return;
-  document.getElementById('upload-section').style.display = 'none';
-  ['prog-card','queue-card','log-card'].forEach(id=>document.getElementById(id).classList.add('show'));
-  renderPipeline(0);
-  renderQueue('processing');
-  renderSteps(-1);
-  t0 = Date.now();
-  logFired = [];
-  runLog();
-  runProg();
-}
-
 // ── Pipeline highlight ──
-function renderPipeline(active){
-  for(let i=0;i<4;i++){
-    const el = document.getElementById('ps'+i);
-    el.classList.remove('active-step','done-step');
-    if(i < active) el.classList.add('done-step');
-    else if(i === active) el.classList.add('active-step');
+function renderPipeline(active) {
+  for (var i = 0; i < 4; i++) {
+    const el = document.getElementById('ps' + i);
+    el.classList.remove('active-step', 'done-step');
+    if (i < active) el.classList.add('done-step');
+    else if (i === active) el.classList.add('active-step');
   }
 }
 
 // ── Steps ──
-function renderSteps(ai){
-  document.getElementById('prog-steps').innerHTML = STEPS.map((s,i)=>{
-    const c = i<ai?'done':i===ai?'act':'';
-    const d = i<ai?'✓':'';
-    return `<div class="ps ${c}"><div class="ps-dot">${d}</div><span>${s}</span></div>`;
+function renderSteps(ai) {
+  document.getElementById('prog-steps').innerHTML = STEPS.map(function(s, i) {
+    const c = i < ai ? 'done' : i === ai ? 'act' : '';
+    const d = i < ai ? '&#x2713;' : '';
+    return '<div class="ps ' + c + '"><div class="ps-dot">' + d + '</div><span>' + s + '</span></div>';
   }).join('');
 }
 
-// ── Queue ──
-function renderQueue(myStatus){
-  const mine = {name: selFile?selFile.name:'file.pdf', size: selFile?(selFile.size/1024/1024).toFixed(2)+' MB':'', status: myStatus, mine:true};
-  const all = [mine, ...others];
-  const active = all.filter(x=>x.status!=='done'&&x.status!=='error').length;
-  document.getElementById('q-badge').textContent = active+' file';
-
+// ── Queue (data nyata dari GET /queue) ──
+async function fetchAndRenderQueue(myStatus) {
   const bmap = {
-    processing:`<span class="stbadge sp"><span class="sd"></span>Diproses</span>`,
-    waiting:   `<span class="stbadge sw"><span class="sd"></span>Menunggu</span>`,
-    done:      `<span class="stbadge sk"><span class="sd"></span>Selesai</span>`,
-    error:     `<span class="stbadge se"><span class="sd"></span>Gagal</span>`,
+    processing: '<span class="stbadge sp"><span class="sd"></span>Diproses</span>',
+    waiting:    '<span class="stbadge sw"><span class="sd"></span>Menunggu</span>',
+    completed:  '<span class="stbadge sk"><span class="sd"></span>Selesai</span>',
+    error:      '<span class="stbadge se"><span class="sd"></span>Gagal</span>',
   };
 
-  document.getElementById('q-list').innerHTML = all.map((q,i)=>{
-    const pc = q.mine?'me':q.status==='processing'?'proc':'';
-    const rc = q.mine?'q-row mine':'q-row';
-    return `<div class="${rc}">
-      <div class="q-num ${pc}">${i+1}</div>
-      <div class="q-inf">
-        <div class="q-name-row">
-          <span class="q-name">${q.name}</span>
-          ${q.mine?`<span class="q-me-tag">▶ Milikmu</span>`:''}
-        </div>
-        <div class="q-meta">${q.size}</div>
-      </div>
-      ${bmap[q.status]||''}
-    </div>`;
-  }).join('');
+  let waiting = 0, processing = 0, completed = 0;
+  try {
+    const res = await fetch(API_BASE + '/queue');
+    const data = await res.json();
+    waiting = data.waiting || 0;
+    processing = data.processing || 0;
+    completed = data.completed || 0;
+  } catch (_) {}
+
+  const effectiveStatus = myStatus || 'waiting';
+  const activeCount = waiting + processing;
+  document.getElementById('q-badge').textContent = activeCount + ' file';
+
+  const rows = [];
+  const fname = selFile ? selFile.name : 'file.pdf';
+  const fsize = selFile ? (selFile.size/1024/1024).toFixed(2) + ' MB' : '';
+
+  rows.push(
+    '<div class="q-row mine">' +
+      '<div class="q-num me">1</div>' +
+      '<div class="q-inf">' +
+        '<div class="q-name-row">' +
+          '<span class="q-name">' + fname + '</span>' +
+          '<span class="q-me-tag">&#9654; Milikmu</span>' +
+        '</div>' +
+        '<div class="q-meta">' + fsize + '</div>' +
+      '</div>' +
+      (bmap[effectiveStatus] || '') +
+    '</div>'
+  );
+
+  if (waiting > 1) {
+    rows.push(
+      '<div class="q-row">' +
+        '<div class="q-num">' + waiting + '</div>' +
+        '<div class="q-inf">' +
+          '<div class="q-name-row"><span class="q-name">' + (waiting - 1) + ' file lain menunggu</span></div>' +
+          '<div class="q-meta">Antrian FIFO</div>' +
+        '</div>' +
+        bmap['waiting'] +
+      '</div>'
+    );
+  }
+  if (processing > 1) {
+    rows.push(
+      '<div class="q-row">' +
+        '<div class="q-num proc">' + processing + '</div>' +
+        '<div class="q-inf">' +
+          '<div class="q-name-row"><span class="q-name">' + processing + ' file sedang diproses</span></div>' +
+          '<div class="q-meta">Worker aktif</div>' +
+        '</div>' +
+        bmap['processing'] +
+      '</div>'
+    );
+  }
+  if (completed > 0) {
+    rows.push(
+      '<div class="q-row">' +
+        '<div class="q-num" style="background:var(--success-bg);color:#059669">' + completed + '</div>' +
+        '<div class="q-inf">' +
+          '<div class="q-name-row"><span class="q-name">' + completed + ' file selesai</span></div>' +
+          '<div class="q-meta">Sesi ini</div>' +
+        '</div>' +
+        bmap['completed'] +
+      '</div>'
+    );
+  }
+
+  document.getElementById('q-list').innerHTML = rows.join('');
 }
 
-// ── Progress ──
-function runProg(){
-  const total = 10000;
-  const bar = document.getElementById('prog-bar');
-  const pct = document.getElementById('prog-pct');
-  const lbl = document.getElementById('prog-label');
-
-  const iv = setInterval(()=>{
-    const el = Date.now()-t0;
-    const p = Math.min(100, Math.round(el/total*100));
-    bar.style.width = p+'%';
-    pct.textContent = p+'%';
-
-    const si = Math.min(Math.floor(el/(total/STEPS.length)), STEPS.length-1);
-    renderSteps(si);
-
-    // Update pipeline indicator
-    if(p<15) renderPipeline(0);
-    else if(p<40) renderPipeline(1);
-    else if(p<75) renderPipeline(2);
-    else renderPipeline(3);
-
-    lbl.textContent = p<100 ? 'Sedang memproses…' : 'Hampir selesai…';
-
-    if(p>=100){
-      clearInterval(iv);
-      renderSteps(STEPS.length);
-      renderPipeline(4);
-      setTimeout(showResult, 500);
+// ── Animasi progress saat processing (30% ke 90% perlahan) ──
+function startProcessingAnimation() {
+  stopProgressAnimation();
+  progAnimIv = setInterval(function() {
+    if (currentProgress < 90) {
+      const step = Math.random() * 0.4 + 0.1;
+      setProgress(currentProgress + step);
+      const si = Math.min(Math.floor((currentProgress - 30) / 10), STEPS.length - 2);
+      if (si >= 0) renderSteps(si + 1);
+      if (currentProgress < 45) renderPipeline(1);
+      else if (currentProgress < 70) renderPipeline(2);
+      else renderPipeline(3);
+    } else {
+      clearInterval(progAnimIv);
     }
-  }, 80);
+  }, 400);
 }
 
-// ── Log ──
-function runLog(){
-  const body = document.getElementById('log-body');
-  logIv = setInterval(()=>{
-    const el = (Date.now()-t0)/1000;
-    document.getElementById('log-elapsed').textContent = el.toFixed(1)+' s';
-    LOGS.forEach(l=>{
-      if(el>=l.d && !logFired.includes(l.d)){
-        logFired.push(l.d);
-        const line = document.createElement('div');
-        line.className = 'll';
-        line.innerHTML = `<span class="lt">${el.toFixed(1)}s</span><span class="lm ${l.c}">${l.m}</span>`;
-        body.appendChild(line);
-        body.scrollTop = body.scrollHeight;
+function stopProgressAnimation() {
+  if (progAnimIv) { clearInterval(progAnimIv); progAnimIv = null; }
+}
+
+// ── Status → log & UI (hanya emit sekali per status) ──
+function handleStatusChange(status) {
+  if (status === lastStatus) return;
+  lastStatus = status;
+
+  if (status === 'waiting') {
+    addLog('[INFO] File berhasil diupload', 'i');
+    addLog('[INFO] Job ID diterima: ' + jobId, 'i');
+    addLog('[INFO] Menunggu dalam antrian…', 'i');
+    setProgress(10, 'Menunggu dalam antrian…');
+    renderSteps(0);
+    renderPipeline(0);
+    fetchAndRenderQueue('waiting');
+
+  } else if (status === 'processing') {
+    addLog('[INFO] Worker mulai memproses', 'i');
+    addLog('[INFO] Konversi PDF → Excel via ilovepdf…', 'i');
+    setTimeout(function() { addLog('[INFO] Upload ke Google Drive…', 'i'); }, 3000);
+    setTimeout(function() { addLog('[INFO] Menjalankan Apps Script…', 'i'); }, 6000);
+    setTimeout(function() { addLog('[INFO] Mengunduh hasil dari Drive…', 'i'); }, 10000);
+    setProgress(30, 'Sedang memproses…');
+    renderSteps(1);
+    renderPipeline(1);
+    fetchAndRenderQueue('processing');
+    startProcessingAnimation();
+
+  } else if (status === 'completed') {
+    stopProgressAnimation();
+    addLog('[INFO] Mengunduh hasil…', 'i');
+    addLog('[SUCCESS] Proses selesai ✅', 'ok');
+    setProgress(100, 'Selesai!');
+    renderSteps(STEPS.length);
+    renderPipeline(4);
+    fetchAndRenderQueue('completed');
+    stopPolling();
+    setTimeout(showResult, 700);
+
+  } else if (status === 'error') {
+    stopProgressAnimation();
+    addLog('[ERROR] Terjadi kesalahan saat memproses file', 'e');
+    setProgress(0, 'Gagal');
+    renderPipeline(-1);
+    fetchAndRenderQueue('error');
+    stopPolling();
+  }
+}
+
+// ── Polling GET /status/<job_id> setiap 2 detik ──
+function startPolling() {
+  if (pollIv) clearInterval(pollIv);
+  pollIv = setInterval(async function() {
+    try {
+      const res = await fetch(API_BASE + '/status/' + jobId);
+      const data = await res.json();
+      handleStatusChange(data.status);
+      if (data.status === 'waiting' || data.status === 'processing') {
+        fetchAndRenderQueue(data.status);
       }
-    });
-    if(el>=10) clearInterval(logIv);
+    } catch (_) {}
+  }, 2000);
+}
+
+function stopPolling() {
+  if (pollIv) { clearInterval(pollIv); pollIv = null; }
+}
+
+// ── Elapsed timer ──
+function startElapsed() {
+  if (elapsedIv) clearInterval(elapsedIv);
+  elapsedIv = setInterval(function() {
+    document.getElementById('log-elapsed').textContent = ((Date.now() - t0) / 1000).toFixed(1) + ' s';
   }, 100);
 }
 
+function stopElapsed() {
+  if (elapsedIv) { clearInterval(elapsedIv); elapsedIv = null; }
+}
+
+// ── Start Process ──
+async function startProcess() {
+  if (!selFile) return;
+  const btn = document.getElementById('btn-main');
+  btn.disabled = true;
+  btn.textContent = 'Mengupload…';
+
+  document.getElementById('upload-section').style.display = 'none';
+  ['prog-card', 'queue-card', 'log-card'].forEach(function(id) {
+    document.getElementById(id).classList.add('show');
+  });
+
+  t0 = Date.now();
+  lastStatus = null;
+  jobId = null;
+  startElapsed();
+
+  document.getElementById('log-body').innerHTML = '';
+  setProgress(0, 'Mengupload file…');
+  renderSteps(-1);
+  renderPipeline(0);
+
+  addLog('[INFO] Memulai upload file…', 'i');
+
+  const form = new FormData();
+  form.append('file', selFile);
+
+  try {
+    const res = await fetch(API_BASE + '/upload', { method: 'POST', body: form });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || 'Upload gagal');
+    jobId = data.job_id;
+    handleStatusChange(data.status || 'waiting');
+    startPolling();
+  } catch (err) {
+    stopElapsed();
+    document.getElementById('upload-section').style.display = '';
+    ['prog-card', 'queue-card', 'log-card'].forEach(function(id) {
+      document.getElementById(id).classList.remove('show');
+    });
+    btn.disabled = false;
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Proses File';
+    alert('Upload gagal: ' + err.message + '\nPastikan backend online dan coba lagi.');
+  }
+}
+
 // ── Result ──
-function showResult(){
+function showResult() {
+  stopElapsed();
   document.getElementById('prog-card').classList.remove('show');
-  renderQueue('done');
-  const base = selFile ? selFile.name.replace(/\.pdf$/i,'') : 'QC_Output';
-  const outName = base+'_Result.xlsx';
+  const outName = selFile ? selFile.name.replace(/\.pdf$/i, '') + '_Result.xlsx' : 'Hasil QC.xlsx';
   document.getElementById('result-fname').textContent = outName;
   document.getElementById('result-fmeta').textContent = 'Excel · Data QC Defect · Siap diunduh';
-  document.getElementById('btn-dl').setAttribute('data-fn', outName);
   document.getElementById('result-card').classList.add('show');
 }
 
-function doDownload(){
+// ── Download ──
+function doDownload() {
+  if (!jobId) return;
   const btn = document.getElementById('btn-dl');
-  const fn = btn.getAttribute('data-fn')||'QC_Result.xlsx';
-  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:17px;height:17px"><polyline points="20 6 9 17 4 12"/></svg> Mengunduh…`;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:17px;height:17px"><polyline points="20 6 9 17 4 12"/></svg> Mengunduh…';
   btn.style.opacity = '.75';
-  setTimeout(()=>{
-    const blob = new Blob(['QC Excel Result'], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href=url; a.download=fn; document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
-    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:17px;height:17px"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="15" x2="12" y2="4"/></svg> Unduh Lagi`;
+  window.location = API_BASE + '/download/' + jobId;
+  setTimeout(function() {
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:17px;height:17px"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="15" x2="12" y2="4"/></svg> Unduh Lagi';
     btn.style.opacity = '1';
-  }, 700);
+  }, 1500);
 }
 
-function reset(){
+// ── Reset ──
+function reset() {
+  stopPolling();
+  stopProgressAnimation();
+  stopElapsed();
   selFile = null;
+  jobId = null;
+  lastStatus = null;
+  currentProgress = 0;
   document.getElementById('file-input').value = '';
   document.getElementById('file-row').classList.remove('show');
-  document.getElementById('btn-main').disabled = true;
-  ['prog-card','queue-card','log-card','result-card'].forEach(id=>document.getElementById(id).classList.remove('show'));
+  const btn = document.getElementById('btn-main');
+  btn.disabled = true;
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Proses File';
+  ['prog-card', 'queue-card', 'log-card', 'result-card'].forEach(function(id) {
+    document.getElementById(id).classList.remove('show');
+  });
   document.getElementById('upload-section').style.display = '';
   document.getElementById('prog-bar').style.width = '0%';
   document.getElementById('prog-pct').textContent = '0%';
   document.getElementById('log-body').innerHTML = '';
+  document.getElementById('log-elapsed').textContent = '0.0 s';
   document.getElementById('prog-steps').innerHTML = '';
   renderPipeline(-1);
-  if(logIv) clearInterval(logIv);
 }
+
+// ── Init: cek status backend saat halaman dibuka ──
+(async function init() {
+  try {
+    const res = await fetch(API_BASE + '/status', { signal: AbortSignal.timeout(5000) });
+    const data = await res.json();
+    setStatusPill(data.success === true);
+  } catch (_) {
+    setStatusPill(false);
+  }
+})();
 </script>
 </body>
 </html>
