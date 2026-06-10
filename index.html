@@ -166,6 +166,25 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .btn-cancel svg{width:14px;height:14px}
 .cancel-row{display:flex;justify-content:center;margin-top:14px}
 
+/* ── Area Source Setting ── */
+.area-source-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:14px}
+.area-source-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
+.area-source-icon{width:32px;height:32px;background:var(--primary-light);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.area-source-icon svg{width:15px;height:15px;color:var(--primary)}
+.area-source-info{flex:1}
+.area-source-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px}
+.area-source-desc{font-size:12px;color:var(--muted);line-height:1.5}
+.area-source-options{display:flex;flex-direction:column;gap:7px}
+.area-opt{display:flex;align-items:flex-start;gap:11px;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;background:var(--bg)}
+.area-opt:hover{border-color:#93C5FD;background:#F0F7FF}
+.area-opt.selected{border-color:var(--primary);background:var(--primary-light)}
+.area-opt input[type=radio]{margin-top:2px;flex-shrink:0;accent-color:var(--primary);width:15px;height:15px;cursor:pointer}
+.area-opt-body{flex:1}
+.area-opt-label{font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:7px;margin-bottom:3px}
+.area-opt-badge{font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:99px;background:#DBEAFE;color:#1D4ED8}
+.area-opt.selected .area-opt-badge{background:#2563EB;color:#fff}
+.area-opt-example{font-size:11.5px;color:var(--muted);font-family:'JetBrains Mono','Fira Code',monospace;background:var(--border);border-radius:4px;padding:2px 7px;display:inline-block;margin-bottom:3px;word-break:break-all}
+.area-opt-result{font-size:11.5px;color:var(--success);font-weight:600}
 /* ── Footer ── */
 .footer{margin-top:auto;border-top:1px solid var(--border);background:var(--surface);padding:14px 24px;text-align:center;font-size:12px;color:var(--light)}
 
@@ -251,6 +270,43 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
         <div id="qp-badge" style="background:var(--primary-light);color:var(--primary);font-size:11.5px;font-weight:700;padding:2px 10px;border-radius:99px">- file</div>
       </div>
       <div id="qp-list" style="padding:6px 0"></div>
+    </div>
+
+    <!-- Pengaturan Sumber Nama Area -->
+    <div class="area-source-card" id="area-source-card">
+      <div class="area-source-header">
+        <div class="area-source-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 10h16M4 14h10"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.5-1.5"/></svg>
+        </div>
+        <div class="area-source-info">
+          <div class="area-source-title">Sumber Nama Area</div>
+          <div class="area-source-desc">Pilih bagian heading yang akan digunakan sebagai nama area saat proses parsing.</div>
+        </div>
+      </div>
+      <div class="area-source-options">
+        <label class="area-opt" id="area-opt-first" onclick="setAreaSource('first')">
+          <input type="radio" name="area_source_mode" value="first" id="radio-first">
+          <div class="area-opt-body">
+            <div class="area-opt-label">
+              Bagian Pertama
+              <span class="area-opt-badge">Kode Unit</span>
+            </div>
+            <div class="area-opt-example">LVP35 - Living Room - Blueprint - Floor 1</div>
+            <div class="area-opt-result">→ Hasil: <strong>LVP35</strong></div>
+          </div>
+        </label>
+        <label class="area-opt selected" id="area-opt-second" onclick="setAreaSource('second')">
+          <input type="radio" name="area_source_mode" value="second" id="radio-second" checked>
+          <div class="area-opt-body">
+            <div class="area-opt-label">
+              Bagian Kedua
+              <span class="area-opt-badge">Default</span>
+            </div>
+            <div class="area-opt-example">LVP35 - Living Room - Blueprint - Floor 1</div>
+            <div class="area-opt-result">→ Hasil: <strong>Living Room</strong></div>
+          </div>
+        </label>
+      </div>
     </div>
 
     <div class="action-row">
@@ -405,6 +461,38 @@ let queuePreviewIv = null; // interval refresh queue-preview di upload section
 // cancelRequested: ID job milik user yg sedang dibatalkan, atau null
 // (bukan boolean — agar cancel tidak bisa "bocor" ke job lain)
 let cancelRequested = null;
+
+// ── Area Source Mode — default 'second', persisten selama tab aktif ──
+const AREA_SOURCE_KEY = 'qcdefect_area_source_mode';
+let areaSourceMode = (function() {
+  try { return sessionStorage.getItem(AREA_SOURCE_KEY) || 'second'; } catch(_) { return 'second'; }
+})();
+
+function setAreaSource(mode) {
+  areaSourceMode = mode;
+  try { sessionStorage.setItem(AREA_SOURCE_KEY, mode); } catch(_) {}
+  // Update visual state
+  ['first', 'second'].forEach(function(m) {
+    var opt = document.getElementById('area-opt-' + m);
+    var radio = document.getElementById('radio-' + m);
+    if (!opt || !radio) return;
+    if (m === mode) {
+      opt.classList.add('selected');
+      radio.checked = true;
+    } else {
+      opt.classList.remove('selected');
+      radio.checked = false;
+    }
+  });
+}
+
+// Terapkan mode tersimpan saat halaman dimuat
+(function applyStoredAreaSource() {
+  // Dijalankan setelah DOM siap — defer via event
+  document.addEventListener('DOMContentLoaded', function() { setAreaSource(areaSourceMode); });
+  // Juga jalankan langsung kalau DOM sudah ada
+  if (document.readyState !== 'loading') setAreaSource(areaSourceMode);
+})();
 
 // ── Steps (visual) ──
 const STEPS = [
@@ -1127,6 +1215,7 @@ async function startProcess() {
     btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Upload ' + (i+1) + '/' + filesToUpload.length + '…';
     const form = new FormData();
     form.append('file', f);
+    form.append('area_source_mode', areaSourceMode);
     try {
       const res = await fetch(api('/upload'), { method: 'POST', body: form });
       if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1171,6 +1260,7 @@ async function startProcess() {
   renderPipeline(0);
 
   addLog('[INFO] ' + successJobs.length + ' file berhasil diupload ke antrian', 'ok');
+  addLog('[INFO] Mode parsing area: ' + (areaSourceMode === 'first' ? 'Bagian Pertama (kode unit)' : 'Bagian Kedua (nama ruangan)'), 'i');
   if (failedFiles.length > 0) {
     failedFiles.forEach(function(e) {
       addLog('[WARN] Gagal: ' + e.name + ' - ' + e.reason, 'w');
