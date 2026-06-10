@@ -190,6 +190,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
       <div class="live-dot"></div>
       <span>Siap</span>
     </div>
+    <button id="btn-cfg" onclick="openBackendConfig()" title="Ganti URL Backend" style="background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 10px;font-size:12px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .15s;font-family:inherit" onmouseover="this.style.borderColor='var(--primary)';this.style.color='var(--primary)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 0 4.93 19.07M4.93 4.93a10 10 0 0 0 14.14 14.14"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>
+      Backend URL
+    </button>
   </div>
 </header>
 
@@ -330,8 +334,20 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 </footer>
 
 <script>
-// ── Config ──
-const API_BASE = 'https://internship-imagination-arkansas-resources.trycloudflare.com';
+// ══════════════════════════════════════════════
+//  CONFIG — satu-satunya tempat untuk URL backend
+// ══════════════════════════════════════════════
+const CONFIG = {
+  DEFAULT_API_BASE: 'https://tale-shepherd-stretch-brilliant.trycloudflare.com',
+  get API_BASE() {
+    return localStorage.getItem('API_BASE') || this.DEFAULT_API_BASE;
+  }
+};
+
+// Helper: bangun URL endpoint
+function api(path) {
+  return CONFIG.API_BASE + path;
+}
 
 // ── State ──
 let selFile = null;
@@ -458,7 +474,7 @@ async function fetchAndRenderQueue(myStatus) {
 
   let waiting = 0, processing = 0, completed = 0;
   try {
-    const res = await fetch(API_BASE + '/queue');
+    const res = await fetch(api('/queue'));
     const data = await res.json();
     waiting = data.waiting || 0;
     processing = data.processing || 0;
@@ -601,7 +617,7 @@ function startPolling() {
   if (pollIv) clearInterval(pollIv);
   pollIv = setInterval(async function() {
     try {
-      const res = await fetch(API_BASE + '/status/' + jobId);
+      const res = await fetch(api('/status/' + jobId));
       const data = await res.json();
       handleStatusChange(data.status);
       if (data.status === 'waiting' || data.status === 'processing') {
@@ -655,7 +671,7 @@ async function startProcess() {
   form.append('file', selFile);
 
   try {
-    const res = await fetch(API_BASE + '/upload', { method: 'POST', body: form });
+    const res = await fetch(api('/upload'), { method: 'POST', body: form });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     if (!data.success) throw new Error(data.message || 'Upload gagal');
@@ -690,7 +706,7 @@ function doDownload() {
   const btn = document.getElementById('btn-dl');
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:17px;height:17px"><polyline points="20 6 9 17 4 12"/></svg> Mengunduh…';
   btn.style.opacity = '.75';
-  window.location = API_BASE + '/download/' + jobId;
+  window.location = api('/download/' + jobId);
   setTimeout(function() {
     btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:17px;height:17px"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="15" x2="12" y2="4"/></svg> Unduh Lagi';
     btn.style.opacity = '1';
@@ -723,10 +739,141 @@ function reset() {
   renderPipeline(-1);
 }
 
+// ── Toast notification ──
+function showToast(msg, type) {
+  // type: 'ok' | 'err' | 'info'
+  var existing = document.getElementById('toast-notif');
+  if (existing) existing.remove();
+  var colors = {
+    ok:   { bg: 'var(--success-bg)', border: '#A7F3D0', color: '#059669' },
+    err:  { bg: 'var(--danger-bg)',  border: '#FCA5A5', color: '#DC2626' },
+    info: { bg: 'var(--primary-light)', border: '#BFDBFE', color: 'var(--primary)' }
+  };
+  var c = colors[type] || colors.info;
+  var t = document.createElement('div');
+  t.id = 'toast-notif';
+  t.style.cssText = [
+    'position:fixed', 'bottom:24px', 'right:24px', 'z-index:9999',
+    'background:' + c.bg, 'border:1px solid ' + c.border,
+    'color:' + c.color, 'border-radius:10px',
+    'padding:12px 20px', 'font-size:13.5px', 'font-weight:600',
+    'box-shadow:0 4px 20px rgba(0,0,0,.13)', 'max-width:320px',
+    'display:flex', 'align-items:center', 'gap:8px',
+    'animation:toast-in .25s ease', 'font-family:inherit'
+  ].join(';');
+  t.innerHTML = msg;
+  document.body.appendChild(t);
+  var style = document.createElement('style');
+  style.textContent = '@keyframes toast-in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}';
+  document.head.appendChild(style);
+  setTimeout(function() {
+    t.style.transition = 'opacity .3s';
+    t.style.opacity = '0';
+    setTimeout(function() { t.remove(); }, 350);
+  }, 3500);
+}
+
+// ── Admin: buka dialog ganti Backend URL ──
+async function openBackendConfig() {
+  var current = CONFIG.API_BASE;
+  var isDefault = !localStorage.getItem('API_BASE');
+
+  // Buat modal
+  var overlay = document.createElement('div');
+  overlay.id = 'cfg-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:8888;display:flex;align-items:center;justify-content:center;padding:20px;font-family:inherit';
+
+  overlay.innerHTML = [
+    '<div style="background:#fff;border-radius:16px;padding:28px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2)">',
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">',
+        '<div style="font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">',
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px;color:var(--primary)"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 0 4.93 19.07M4.93 4.93a10 10 0 0 0 14.14 14.14"/></svg>',
+          'Konfigurasi Backend URL',
+        '</div>',
+        '<button onclick="document.getElementById(\'cfg-overlay\').remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--light);line-height:1;padding:2px">✕</button>',
+      '</div>',
+      '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500">URL Backend (Cloudflare Tunnel)</div>',
+      '<input id="cfg-input" type="url" value="' + current + '" ',
+        'style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;font-family:inherit;color:var(--text);outline:none;margin-bottom:6px;transition:border-color .15s" ',
+        'placeholder="https://xxxx.trycloudflare.com" ',
+        'onfocus="this.style.borderColor=\'var(--primary)\'" ',
+        'onblur="this.style.borderColor=\'var(--border)\'">',
+      '<div style="font-size:11.5px;color:var(--light);margin-bottom:20px">',
+        isDefault
+          ? '⚡ Menggunakan URL default'
+          : '📌 URL tersimpan dari localStorage',
+      '</div>',
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">',
+        '<button id="cfg-save" onclick="saveBackendUrl()" ',
+          'style="flex:1;background:linear-gradient(135deg,#2563EB,#7C3AED);color:#fff;border:none;border-radius:8px;padding:11px 18px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit">',
+          'Simpan & Test Koneksi',
+        '</button>',
+        '<button onclick="resetBackendUrl()" ',
+          'style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:8px;padding:11px 14px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;font-family:inherit">',
+          '↺ Reset ke Default',
+        '</button>',
+      '</div>',
+    '</div>'
+  ].join('');
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) overlay.remove();
+  });
+  setTimeout(function() { document.getElementById('cfg-input').focus(); }, 50);
+}
+
+// ── Simpan URL baru (validasi dulu dengan GET /status) ──
+async function saveBackendUrl() {
+  var input = document.getElementById('cfg-input');
+  if (!input) return;
+  var url = input.value.trim().replace(/\/$/, '');
+
+  if (!url.startsWith('http')) {
+    showToast('❌ URL tidak valid. Harus diawali https://', 'err');
+    return;
+  }
+
+  var btn = document.getElementById('cfg-save');
+  if (btn) { btn.textContent = 'Menguji koneksi…'; btn.disabled = true; btn.style.opacity = '.7'; }
+
+  try {
+    var res = await fetch(url + '/status', { signal: AbortSignal.timeout(6000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    // Berhasil
+    localStorage.setItem('API_BASE', url);
+    var overlay = document.getElementById('cfg-overlay');
+    if (overlay) overlay.remove();
+    showToast('✅ Backend Connected', 'ok');
+    setStatusPill(data.success === true || data.status !== undefined);
+  } catch (err) {
+    if (btn) { btn.textContent = 'Simpan & Test Koneksi'; btn.disabled = false; btn.style.opacity = '1'; }
+    showToast('❌ Backend Tidak Dapat Dihubungi', 'err');
+    setStatusPill(false);
+  }
+}
+
+// ── Reset ke default URL ──
+function resetBackendUrl() {
+  localStorage.removeItem('API_BASE');
+  var overlay = document.getElementById('cfg-overlay');
+  if (overlay) overlay.remove();
+  showToast('↺ URL backend direset ke default', 'info');
+  // Re-test koneksi ke default
+  (async function() {
+    try {
+      var res = await fetch(api('/status'), { signal: AbortSignal.timeout(5000) });
+      var data = await res.json();
+      setStatusPill(data.success === true);
+    } catch (_) { setStatusPill(false); }
+  })();
+}
+
 // ── Init: cek status backend saat halaman dibuka ──
 (async function init() {
   try {
-    const res = await fetch(API_BASE + '/status', { signal: AbortSignal.timeout(5000) });
+    const res = await fetch(api('/status'), { signal: AbortSignal.timeout(5000) });
     const data = await res.json();
     setStatusPill(data.success === true);
   } catch (_) {
