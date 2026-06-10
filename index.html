@@ -371,6 +371,9 @@ let currentProgress = 0;
 let lastStatus = null;
 let lastStage = null;
 let queuePreviewIv = null; // interval refresh queue-preview di upload section
+// job_id yang pernah dimiliki user di sesi ini (termasuk yang dibatalkan),
+// agar queue-preview tetap bisa mengenali job sendiri setelah reset
+let ownedJobIds = {};     // { job_id: filename }
 
 // ── Steps (visual) ──
 const STEPS = [
@@ -570,8 +573,8 @@ async function refreshQueuePreview() {
       return;
     }
 
-    // Buat map job_id → filename dari uploadedJobs untuk pengecekan milik sendiri
-    const myJobMap = {};
+    // Buat map job_id → filename: gabungkan uploadedJobs + ownedJobIds
+    const myJobMap = Object.assign({}, ownedJobIds);
     uploadedJobs.forEach(function(j) { myJobMap[j.job_id] = j.filename; });
 
     list.innerHTML = jobs.map(function(job, idx) {
@@ -653,8 +656,8 @@ async function fetchAndRenderQueue(myStatus) {
 
   const rows = [];
 
-  // Buat map job_id → filename dari uploadedJobs untuk pengecekan milik sendiri
-  const myJobMap = {};
+  // Buat map job_id → filename: gabungkan uploadedJobs + ownedJobIds
+  const myJobMap = Object.assign({}, ownedJobIds);
   uploadedJobs.forEach(function(j) { myJobMap[j.job_id] = j.filename; });
 
   // ── Render tiap baris antrian ──
@@ -849,7 +852,7 @@ function stopPolling() {
   if (pollIv) { clearInterval(pollIv); pollIv = null; }
 }
 
-// ── Cancel Process ──
+// ── Cancel Process — batalkan hanya job milik user yang sedang dipantau ──
 async function cancelProcess() {
   const btn = document.getElementById('btn-cancel');
   if (!btn || btn.disabled) return;
@@ -861,32 +864,44 @@ async function cancelProcess() {
   stopPolling();
   stopElapsed();
 
-  // Kirim request cancel ke backend (coba DELETE dulu, fallback POST)
-  if (jobId) {
+  // Kumpulkan semua job milik user yang masih aktif (waiting / processing)
+  // Hanya job_id yang ada di uploadedJobs sesi ini — bukan job orang lain
+  const jobsToCancel = uploadedJobs.filter(function(j) {
+    return j.status === 'waiting' || j.status === 'processing' || !j.status;
+  });
+
+  // Jika tidak ada job aktif, batalkan hanya jobId yang sedang dipantau
+  const cancelTargets = jobsToCancel.length > 0
+    ? jobsToCancel.map(function(j) { return j.job_id; })
+    : (jobId ? [jobId] : []);
+
+  let cancelOk = false;
+
+  for (const cid of cancelTargets) {
+    if (!cid) continue;
     try {
-      let res = await fetch(api('/job/' + encodeURIComponent(jobId)), {
+      let res = await fetch(api('/job/' + encodeURIComponent(cid)), {
         method: 'DELETE',
         signal: AbortSignal.timeout(5000)
       });
-      // Beberapa backend pakai POST /cancel/<id>
       if (!res.ok) {
-        res = await fetch(api('/cancel/' + encodeURIComponent(jobId)), {
+        res = await fetch(api('/cancel/' + encodeURIComponent(cid)), {
           method: 'POST',
           signal: AbortSignal.timeout(5000)
         });
       }
-      if (res.ok) {
-        showToast('🚫 Proses dibatalkan', 'info');
-        addLog('[WARN] Proses dibatalkan oleh pengguna', 'w');
-      } else {
-        showToast('⚠️ Permintaan batal dikirim', 'info');
-        addLog('[WARN] Cancel dikirim (status: ' + res.status + ')', 'w');
-      }
+      if (res.ok) cancelOk = true;
     } catch (_) {
-      // Backend mungkin tidak punya endpoint cancel - tetap reset UI
-      showToast('↩ Proses dihentikan', 'info');
-      addLog('[WARN] Proses dihentikan oleh pengguna', 'w');
+      cancelOk = true; // tetap reset UI
     }
+  }
+
+  if (cancelOk || cancelTargets.length === 0) {
+    showToast('🚫 Proses dibatalkan', 'info');
+    addLog('[WARN] Proses dibatalkan oleh pengguna', 'w');
+  } else {
+    showToast('⚠️ Permintaan batal dikirim', 'info');
+    addLog('[WARN] Permintaan batal dikirim ke server', 'w');
   }
 
   // Reset UI ke upload section setelah 600ms agar log sempat terbaca
@@ -931,6 +946,7 @@ async function startProcess() {
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Upload gagal');
       successJobs.push({ job_id: data.job_id, filename: f.name, status: data.status || 'waiting' });
+      ownedJobIds[data.job_id] = f.name;  // simpan permanen di sesi ini
     } catch (err) {
       failedFiles.push({ name: f.name, reason: err.message });
     }
@@ -1095,6 +1111,8 @@ function reset() {
   lastStage       = null;
   currentProgress = 0;
   completedJobIds = [];
+  // ownedJobIds TIDAK dikosongkan — agar queue-preview tetap mengenali
+  // job sendiri yang belum selesai/dibatalkan setelah kembali ke menu awal
   document.getElementById('file-input').value = '';
   renderFileList();
   document.getElementById('file-errors-wrap').style.display = 'none';
