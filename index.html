@@ -139,7 +139,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .log-body{padding:12px 16px;font-size:12px;font-family:'JetBrains Mono','Fira Code',monospace;display:flex;flex-direction:column;gap:4px;max-height:150px;overflow-y:auto}
 .ll{display:flex;gap:10px}
 .lt{color:var(--light);flex-shrink:0;width:52px}
-.lm.i{color:#2563EB}.lm.ok{color:var(--success)}.lm.w{color:var(--warning)}.lm.e{color:var(--danger)}
+.lm.i{color:#2563EB}.lm.ok{color:var(--success)}.lm.w{color:var(--warning)}.lm.e{color:var(--danger)}.lm.c{color:#7C3AED}
 
 /* ── Result ── */
 .result-card{background:var(--surface);border:1px solid #A7F3D0;border-radius:var(--radius);padding:32px;display:none;text-align:center;margin-bottom:16px}
@@ -236,7 +236,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 
     <div class="warn-box">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span>Batas ukuran file <strong>15 MB per file</strong>. Hanya format <strong>PDF</strong>. Maks. <strong>10 file</strong> sekaligus. Setiap file jadi job terpisah dalam antrian FIFO.</span>
+      <span>Hanya format <strong>PDF</strong>. Maks. <strong>10 file</strong> sekaligus. File &gt;15 MB akan dikompres otomatis sebelum diproses. Setiap file jadi job terpisah dalam antrian FIFO.</span>
     </div>
 
     <div class="upload-card" id="upload-zone" onclick="document.getElementById('file-input').click()">
@@ -248,7 +248,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
       <div class="upload-sub">atau klik untuk memilih dari perangkat kamu - bisa pilih beberapa sekaligus</div>
       <div class="chips">
         <span class="chip">PDF only</span>
-        <span class="chip">Maks. 15 MB / file</span>
+        <span class="chip">Auto kompres jika &gt;15 MB</span>
         <span class="chip">Maks. 10 file</span>
         <span class="chip">QC Defect Report</span>
       </div>
@@ -324,7 +324,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
       <div class="pipe-num">1</div>
       <div class="pipe-icon">📄</div>
       <div class="pipe-label">Upload PDF</div>
-      <div class="pipe-desc">Pilih file QC<br>maks. 15 MB</div>
+      <div class="pipe-desc">Pilih file QC<br>auto kompres</div>
     </div>
     <div class="pipe-step" id="ps1">
       <div class="pipe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
@@ -396,7 +396,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 </div>
 
 <footer class="footer">
-  QC Defect - PDF ke Excel &copy; 2026 &bull; ilovepdf · Google Drive · Apps Script &bull; Maks. 15 MB
+  QC Defect - PDF ke Excel &copy; 2026 &bull; ilovepdf · Google Drive · Apps Script &bull; Auto kompres PDF &gt;15 MB
 </footer>
 
 <script>
@@ -573,8 +573,6 @@ function handleFile(files) {
   Array.from(files).slice(0, MAX_FILES + 5).forEach(function(f) {
     if (!f.name.toLowerCase().endsWith('.pdf')) {
       errors.push({ name: f.name, reason: 'Bukan file PDF' });
-    } else if (f.size > MAX_MB * 1024 * 1024) {
-      errors.push({ name: f.name, reason: 'Ukuran ' + (f.size/1024/1024).toFixed(1) + ' MB > batas ' + MAX_MB + ' MB' });
     } else if (existingNames.has(f.name)) {
       errors.push({ name: f.name, reason: 'File sudah ada dalam daftar' });
     } else {
@@ -907,6 +905,17 @@ function handleStatusOnce(status) {
   }
 }
 
+// ── Tampilkan pesan error compress dari backend ──
+function handleCompressError(data) {
+  const msg = data.message || data.error || null;
+  if (!msg) return;
+  const isCompressErr = msg.indexOf('iLovePDF') !== -1 || msg.indexOf('kompres') !== -1 || msg.indexOf('Ukuran PDF masih') !== -1;
+  if (isCompressErr) {
+    addLog('[ERROR] ' + msg, 'e');
+    document.getElementById('prog-label').textContent = msg;
+  }
+}
+
 // ── applyBackendData: terapkan progress + stage langsung dari backend ──
 function applyBackendData(data) {
   const status = data.status;
@@ -915,24 +924,53 @@ function applyBackendData(data) {
 
   // Terapkan progress dari backend (hanya jika ada)
   if (progress !== null) {
-    const label = stage || (
-      status === 'waiting'    ? 'Menunggu dalam antrian…' :
-      status === 'processing' ? 'Sedang memproses…' :
-      status === 'completed'  ? 'Selesai!' :
-      status === 'error'      ? 'Gagal' : 'Memproses…'
-    );
+    const compressStages = ['Memeriksa ukuran PDF', 'Kompres PDF otomatis', 'Kompres selesai'];
+    const isCompress = stage && compressStages.indexOf(stage) !== -1;
+    const label = stage
+      ? (isCompress ? '🗜️ ' + stage : stage)
+      : (
+          status === 'waiting'    ? 'Menunggu dalam antrian…' :
+          status === 'processing' ? 'Sedang memproses…' :
+          status === 'completed'  ? 'Selesai!' :
+          status === 'error'      ? 'Gagal' : 'Memproses…'
+        );
     setProgress(progress, label);
   } else {
     // Tidak ada progress dari backend - set label saja tanpa mengubah angka
     if (stage) {
-      document.getElementById('prog-label').textContent = stage;
+      const compressStages = ['Memeriksa ukuran PDF', 'Kompres PDF otomatis', 'Kompres selesai'];
+      const isCompress = compressStages.indexOf(stage) !== -1;
+      document.getElementById('prog-label').textContent = isCompress ? '🗜️ ' + stage : stage;
     }
   }
 
   // Log stage hanya jika berubah
   if (stage && stage !== lastStage) {
     lastStage = stage;
-    addLog('[INFO] ' + stage, 'i');
+
+    // Deteksi stage kompres otomatis & tampilkan log khusus
+    if (stage === 'Memeriksa ukuran PDF') {
+      addLog('[KOMPRES] 🔍 ' + stage, 'c');
+      // Tampilkan ukuran file asli jika tersedia
+      if (typeof data.original_size_mb === 'number') {
+        addLog('[KOMPRES] Ukuran asli: ' + data.original_size_mb.toFixed(2) + ' MB', 'c');
+      }
+    } else if (stage === 'Kompres PDF otomatis') {
+      addLog('[KOMPRES] 🗜️ ' + stage, 'c');
+      if (typeof data.compress_attempt === 'number') {
+        addLog('[KOMPRES] Percobaan kompres ke-' + data.compress_attempt, 'c');
+      }
+    } else if (stage === 'Kompres selesai') {
+      addLog('[KOMPRES] ✅ ' + stage, 'c');
+      if (typeof data.compressed_size_mb === 'number') {
+        addLog('[KOMPRES] Ukuran hasil kompres: ' + data.compressed_size_mb.toFixed(2) + ' MB', 'c');
+      }
+      if (typeof data.compress_attempt === 'number') {
+        addLog('[KOMPRES] Total percobaan: ' + data.compress_attempt, 'c');
+      }
+    } else {
+      addLog('[INFO] ' + stage, 'i');
+    }
   }
 
   // Pipeline visual berdasarkan progress
@@ -981,6 +1019,7 @@ function startPolling() {
         setTimeout(showResult, 700);
       } else if (data.status === 'error') {
         fetchAndRenderQueue('error');
+        handleCompressError(data);
         stopPolling();
         saveSession();
       }
