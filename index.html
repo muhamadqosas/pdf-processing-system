@@ -233,7 +233,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 
     <div class="warn-box">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span>Hanya format <strong>PDF</strong>. Maks. <strong>10 file</strong> sekaligus. File &gt;15 MB akan dikompres otomatis sebelum diproses. Setiap file jadi job terpisah dalam antrian FIFO.</span>
+      <span>Hanya format <strong>PDF</strong>. Maks. <strong>10 file</strong> sekaligus. Setiap file jadi job terpisah dalam antrian FIFO.</span>
     </div>
 
     <div class="upload-card" id="upload-zone" onclick="document.getElementById('file-input').click()">
@@ -245,7 +245,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
       <div class="upload-sub">atau klik untuk memilih dari perangkat kamu - bisa pilih beberapa sekaligus</div>
       <div class="chips">
         <span class="chip">PDF only</span>
-        <span class="chip">Auto kompres jika &gt;15 MB</span>
         <span class="chip">Maks. 10 file</span>
         <span class="chip">QC Defect Report</span>
       </div>
@@ -320,7 +319,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
       <div class="pipe-num">1</div>
       <div class="pipe-icon">📄</div>
       <div class="pipe-label">Upload PDF</div>
-      <div class="pipe-desc">Pilih file QC<br>auto kompres</div>
+      <div class="pipe-desc">Pilih file QC</div>
     </div>
     <div class="pipe-step" id="ps1">
       <div class="pipe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
@@ -392,7 +391,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 </div>
 
 <footer class="footer">
-  QC Defect - PDF ke Excel &copy; 2026 &bull; ilovepdf · Google Drive · Apps Script &bull; Auto kompres PDF &gt;15 MB
+  QC Defect - PDF ke Excel &copy; 2026 &bull; ilovepdf · Google Drive · Apps Script
 </footer>
 
 <script>
