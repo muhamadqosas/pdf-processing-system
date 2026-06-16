@@ -146,8 +146,10 @@
   input[type=file] { display: none; }
 
   /* ===== FOTO SOURCE PICKER POPUP (mobile) ===== */
-  #foto-source-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9800; align-items: flex-end; justify-content: center; animation: fadeIn 0.18s ease; }
-  #foto-source-overlay.active { display: flex; }
+  #foto-source-overlay,
+  #batch-source-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9800; align-items: flex-end; justify-content: center; animation: fadeIn 0.18s ease; }
+  #foto-source-overlay.active,
+  #batch-source-overlay.active { display: flex; }
   .foto-source-sheet { background: var(--white); border-radius: 16px 16px 0 0; padding: 16px 16px 32px; width: 100%; max-width: 480px; animation: sheetIn 0.22s ease; }
   @keyframes sheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
   .foto-source-title { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-align: center; margin-bottom: 14px; letter-spacing: 0.3px; text-transform: uppercase; }
@@ -509,6 +511,24 @@
       </button>
     </div>
     <button class="foto-source-cancel" onclick="closeFotoSourcePicker()">Batal</button>
+  </div>
+</div>
+
+<!-- BATCH SOURCE PICKER (mobile: kamera loop vs galeri multiple) -->
+<div id="batch-source-overlay">
+  <div class="foto-source-sheet">
+    <div class="foto-source-title">Import Foto Batch</div>
+    <div class="foto-source-btns">
+      <button class="foto-source-btn" onclick="batchSourcePick('camera')">
+        <i class="bi bi-camera-fill"></i> Kamera
+        <span style="font-size:10px;color:var(--text-secondary);font-weight:400;margin-top:-4px;">foto satu per satu</span>
+      </button>
+      <button class="foto-source-btn" onclick="batchSourcePick('gallery')">
+        <i class="bi bi-images"></i> Galeri
+        <span style="font-size:10px;color:var(--text-secondary);font-weight:400;margin-top:-4px;">pilih banyak sekaligus</span>
+      </button>
+    </div>
+    <button class="foto-source-cancel" onclick="closeBatchSourcePicker()">Batal</button>
   </div>
 </div>
 
@@ -1357,43 +1377,200 @@ function addDefect(ubId, areaId) {
 // ══════════════════════════════════════════════
 //  BATCH IMPORT FOTO
 // ══════════════════════════════════════════════
+var _batchPickerContext = null; // { ubId, areaId }
+
 function batchImportFoto(ubId, areaId) {
+  _batchPickerContext = { ubId: ubId, areaId: areaId };
+  if (isMobileDevice()) {
+    // Mobile: tampilkan sheet pilih sumber
+    document.getElementById('batch-source-overlay').classList.add('active');
+  } else {
+    // Desktop: langsung buka file manager multiple
+    batchSourcePick('gallery');
+  }
+}
+
+function closeBatchSourcePicker() {
+  document.getElementById('batch-source-overlay').classList.remove('active');
+}
+
+// Proses array File[] → buat defect baru per foto dan upload
+async function _processBatchFiles(ubId, areaId, files) {
+  if (!files || !files.length) return;
+
+  var ub = findUb(ubId);
+  if (!ub) return;
+  var area = findArea(ub, areaId);
+  if (!area) return;
+
+  toast('Membuat ' + files.length + ' defect dari ' + files.length + ' foto...', 'info');
+
+  var newDefects = [];
+  for (var i = 0; i < files.length; i++) {
+    var d = { id: uid(), desc: '', foto: null, fotoFileId: null, fotoUploading: true, fotoOffline: false, marker: null };
+    area.defects.push(d);
+    newDefects.push({ defect: d, file: files[i] });
+  }
+
+  patchAreaDefects(ub, area);
+  saveSession();
+
+  for (var j = 0; j < newDefects.length; j++) {
+    (function(item) {
+      changeFotoFile(ubId, areaId, item.defect.id, item.file);
+    })(newDefects[j]);
+  }
+}
+
+// Kamera batch loop dengan popup konfirmasi setelah tiap foto:
+// Ambil foto → proses defect → muncul popup "Foto Berikutnya" (besar) / "Selesai" (kecil)
+// User tap "Foto Berikutnya" → buka kamera lagi
+// User tap "Selesai" → loop berhenti
+var _cameraLoopCount = 0; // counter foto yang sudah diambil di sesi ini
+
+function _showCameraLoopPopup(ubId, areaId) {
+  // Hapus popup lama jika ada
+  var old = document.getElementById('__camera_loop_popup');
+  if (old) old.parentNode.removeChild(old);
+
+  var count = _cameraLoopCount;
+  var overlay = document.createElement('div');
+  overlay.id = '__camera_loop_popup';
+  overlay.style.cssText = [
+    'position:fixed;inset:0;z-index:9900;',
+    'background:rgba(0,0,0,0.55);',
+    'display:flex;align-items:flex-end;justify-content:center;',
+    'padding:0 0 0 0;',
+    'animation:fadeIn 0.2s ease;',
+    'font-family:inherit;'
+  ].join('');
+
+  overlay.innerHTML = [
+    '<div style="',
+      'background:#fff;border-radius:20px 20px 0 0;',
+      'padding:24px 20px 40px;width:100%;max-width:480px;',
+      'animation:sheetIn 0.25s ease;',
+      'text-align:center;',
+    '">',
+      // Icon & counter
+      '<div style="width:56px;height:56px;border-radius:50%;background:#EAF4FF;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">',
+        '<i class="bi bi-camera-fill" style="font-size:26px;color:#0F4C81;"></i>',
+      '</div>',
+      '<div style="font-size:13px;color:#6B7280;font-weight:600;margin-bottom:4px;">',
+        count + ' foto berhasil ditambahkan',
+      '</div>',
+      '<div style="font-size:16px;font-weight:800;color:#1F2937;margin-bottom:24px;">',
+        'Lanjut ambil foto berikutnya?',
+      '</div>',
+
+      // Tombol BESAR: Foto Berikutnya
+      '<button id="__clp_next" style="',
+        'display:flex;align-items:center;justify-content:center;gap:10px;',
+        'width:100%;padding:16px;border-radius:14px;border:none;',
+        'background:linear-gradient(90deg,#0F4C81,#1E6FB9);',
+        'color:#fff;font-size:16px;font-weight:800;cursor:pointer;',
+        'box-shadow:0 4px 18px rgba(15,76,129,0.32);',
+        'margin-bottom:12px;letter-spacing:0.2px;',
+      '">',
+        '<i class="bi bi-camera-fill" style="font-size:20px;"></i>',
+        'FOTO BERIKUTNYA',
+      '</button>',
+
+      // Tombol KECIL: Selesai
+      '<button id="__clp_stop" style="',
+        'width:100%;padding:11px;border-radius:10px;',
+        'border:1.5px solid #D6E4F2;background:#fff;',
+        'color:#6B7280;font-size:13px;font-weight:600;cursor:pointer;',
+      '">',
+        'Selesai (' + count + ' foto)',
+      '</button>',
+    '</div>'
+  ].join('');
+
+  document.body.appendChild(overlay);
+
+  document.getElementById('__clp_next').onclick = function() {
+    overlay.remove();
+    _openCameraLoop(ubId, areaId);
+  };
+
+  document.getElementById('__clp_stop').onclick = function() {
+    overlay.remove();
+    var finalCount = _cameraLoopCount;
+    _cameraLoopCount = 0;
+    toast('Selesai — ' + finalCount + ' foto ditambahkan', 'success');
+  };
+}
+
+function _openCameraLoop(ubId, areaId) {
+  // Hapus input lama jika ada (cegah duplikat di DOM)
+  var old = document.getElementById('__camera_loop_input');
+  if (old) old.parentNode.removeChild(old);
+
   var inp = document.createElement('input');
   inp.type = 'file';
   inp.accept = 'image/*';
-  inp.multiple = true;
-  inp.onchange = async function() {
+  inp.capture = 'environment';
+  inp.id = '__camera_loop_input';
+  inp.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;pointer-events:none;';
+  document.body.appendChild(inp);
+
+  // Timeout fallback: jika onchange tidak pernah terpanggil dalam 60 detik
+  // (browser tidak support cancel detection), anggap user cancel → popup tetap muncul
+  var _didChange = false;
+  var _fallbackTimer = setTimeout(function() {
+    if (!_didChange) {
+      var el = document.getElementById('__camera_loop_input');
+      if (el) el.parentNode.removeChild(el);
+      // Jika sudah ada foto → tampilkan popup; jika belum → diam saja
+      if (_cameraLoopCount > 0) _showCameraLoopPopup(ubId, areaId);
+    }
+  }, 60000);
+
+  inp.onchange = function() {
+    _didChange = true;
+    clearTimeout(_fallbackTimer);
     var files = Array.prototype.slice.call(inp.files || []);
-    if (!files.length) return;
+    var el = document.getElementById('__camera_loop_input');
+    if (el) el.parentNode.removeChild(el);
 
-    var ub = findUb(ubId);
-    if (!ub) return;
-    var area = findArea(ub, areaId);
-    if (!area) return;
-
-    toast('Membuat ' + files.length + ' defect dari ' + files.length + ' foto...', 'info');
-
-    // Buat defect baru untuk setiap foto
-    var newDefects = [];
-    for (var i = 0; i < files.length; i++) {
-      var d = { id: uid(), desc: '', foto: null, fotoFileId: null, fotoUploading: true, fotoOffline: false, marker: null };
-      area.defects.push(d);
-      newDefects.push({ defect: d, file: files[i] });
+    if (!files.length) {
+      // User cancel tanpa foto (beberapa browser memang trigger onchange kosong)
+      if (_cameraLoopCount > 0) _showCameraLoopPopup(ubId, areaId);
+      return;
     }
 
-    patchAreaDefects(ub, area);
-    saveSession();
-
-    // Upload / preview setiap foto
-    for (var j = 0; j < newDefects.length; j++) {
-      (function(item) {
-        var d = item.defect;
-        var file = item.file;
-        changeFotoFile(ubId, areaId, d.id, file);
-      })(newDefects[j]);
-    }
+    // Ada foto → proses jadi defect baru, lalu tampilkan popup konfirmasi
+    _cameraLoopCount += files.length;
+    _processBatchFiles(ubId, areaId, files);
+    // Beri jeda singkat agar UI update dulu sebelum popup muncul
+    setTimeout(function() { _showCameraLoopPopup(ubId, areaId); }, 400);
   };
+
   inp.click();
+}
+
+function batchSourcePick(source) {
+  closeBatchSourcePicker();
+  if (!_batchPickerContext) return;
+  var ctx = _batchPickerContext;
+  _batchPickerContext = null;
+
+  if (source === 'camera') {
+    // Kamera loop: buka satu per satu, konfirmasi lewat popup setelah tiap foto
+    _cameraLoopCount = 0;
+    _openCameraLoop(ctx.ubId, ctx.areaId);
+  } else {
+    // Galeri / file manager: multiple select langsung
+    var inp = document.createElement('input');
+    inp.type = 'file';
+    inp.accept = 'image/*';
+    inp.multiple = true;
+    inp.onchange = function() {
+      _processBatchFiles(ctx.ubId, ctx.areaId, Array.prototype.slice.call(inp.files || []));
+    };
+    inp.click();
+  }
 }
 
 // Helper: proses satu file foto langsung ke defect tertentu (dipakai oleh batchImportFoto)
@@ -1673,6 +1850,8 @@ function closeFotoSourcePicker() {
 document.addEventListener('DOMContentLoaded', function() {
   var overlay = document.getElementById('foto-source-overlay');
   if (overlay) overlay.addEventListener('click', function(e) { if (e.target === overlay) closeFotoSourcePicker(); });
+  var batchOverlay = document.getElementById('batch-source-overlay');
+  if (batchOverlay) batchOverlay.addEventListener('click', function(e) { if (e.target === batchOverlay) closeBatchSourcePicker(); });
 });
 
 // ── Drag & Drop ke label foto (desktop) ──
