@@ -1771,50 +1771,6 @@ function startPick(ubId, areaId, defectId) {
   }
 }
 
-// Reposisi marker di popup agar sesuai dengan area render gambar + zoom/pan transform
-// Marker berada di layer terpisah (tidak ikut transform stage), sehingga ukurannya selalu tetap.
-function repositionFpMarkers() {
-  var img = document.getElementById('fp-pick-img');
-  var markersEl = document.getElementById('fp-pick-markers');
-  if (!img || !markersEl) return;
-
-  var container = document.getElementById('fp-pick-container');
-  var containerRect = container.getBoundingClientRect();
-  var stageW = containerRect.width;
-  var stageH = containerRect.height;
-  var natW = img.naturalWidth || stageW;
-  var natH = img.naturalHeight || stageH;
-
-  // Hitung area render aktual gambar dalam stage (object-fit:contain) pada scale=1
-  var imgScale = Math.min(stageW / natW, stageH / natH);
-  var rendW = natW * imgScale;
-  var rendH = natH * imgScale;
-  var imgOffsetX = (stageW - rendW) / 2;
-  var imgOffsetY = (stageH - rendH) / 2;
-
-  // Ambil state zoom/pan saat ini
-  var sc = fpzState.scale;
-  var tx = fpzState.x;
-  var ty = fpzState.y;
-
-  var markers = markersEl.querySelectorAll('.fp-defect-marker');
-  for (var i = 0; i < markers.length; i++) {
-    var m = markers[i];
-    var mx = parseFloat(m.getAttribute('data-mx'));
-    var my = parseFloat(m.getAttribute('data-my'));
-    if (isNaN(mx) || isNaN(my)) continue;
-    // Posisi dalam ruang stage (sebelum transform): pixel dari pojok kiri atas stage
-    var pxStage = imgOffsetX + (mx / 100) * rendW;
-    var pyStage = imgOffsetY + (my / 100) * rendH;
-    // Terapkan transform stage (translate + scale, origin 0 0) → posisi dalam container
-    var pxContainer = tx + pxStage * sc;
-    var pyContainer = ty + pyStage * sc;
-    // Set posisi marker (left/top dalam container) — ukuran marker TIDAK berubah
-    m.style.left = pxContainer + 'px';
-    m.style.top  = pyContainer + 'px';
-  }
-}
-
 function cancelPickModal() {
   pickingInfo = null;
   document.getElementById('fp-pick-modal').classList.remove('active');
@@ -1851,33 +1807,22 @@ function getRenderedImageRect(img) {
 
 function placeMarkerAt(clientX, clientY) {
   if (!pickingInfo) return;
-  var img = document.getElementById('fp-pick-img');
 
-  // Balik transformasi zoom/pan pada stage agar koordinat klik
-  // sesuai dengan ruang koordinat gambar sebelum di-transform.
-  // transform-origin: 0 0 → transform = translate(x,y) scale(s)
-  // client → container → stage: unscaled = (containerLocal - translate) / scale
-  var containerRect = document.getElementById('fp-pick-container').getBoundingClientRect();
-  var localX = clientX - containerRect.left;
-  var localY = clientY - containerRect.top;
+  // Balik transformasi zoom/pan → koordinat ruang stage
+  var c = getFpCache();
+  var localX = clientX - c.containerLeft;
+  var localY = clientY - c.containerTop;
   var unscaledX = (localX - fpzState.x) / fpzState.scale;
   var unscaledY = (localY - fpzState.y) / fpzState.scale;
-  // unscaledX/Y sekarang dalam ruang stage (0,0 = pojok kiri atas stage)
 
-  // Hitung area render aktual gambar (object-fit:contain) dalam ruang stage
-  // (stage tanpa transform = sama persis dengan container pada scale=1)
-  // naturalWidth/Height gambar, dan ukuran stage (= container saat scale=1)
-  var stageW = containerRect.width;
-  var stageH = containerRect.height;
-  var natW = img.naturalWidth || stageW;
-  var natH = img.naturalHeight || stageH;
-  var scale = Math.min(stageW / natW, stageH / natH);
-  var rendW = natW * scale;
-  var rendH = natH * scale;
-  var imgOffsetX = (stageW - rendW) / 2;
-  var imgOffsetY = (stageH - rendH) / 2;
+  // Area render gambar (object-fit:contain) dalam ruang stage pada scale=1
+  var imgScale  = Math.min(c.stageW / c.natW, c.stageH / c.natH);
+  var rendW     = c.natW * imgScale;
+  var rendH     = c.natH * imgScale;
+  var imgOffsetX = (c.stageW - rendW) / 2;
+  var imgOffsetY = (c.stageH - rendH) / 2;
 
-  var x = ((unscaledX - imgOffsetX) / rendW)  * 100;
+  var x = ((unscaledX - imgOffsetX) / rendW) * 100;
   var y = ((unscaledY - imgOffsetY) / rendH) * 100;
   if (x < 0 || x > 100 || y < 0 || y > 100) return;
 
@@ -1922,16 +1867,90 @@ function resetFpZoom() {
   initFpZoomHandlers();
 }
 
-function applyFpZoom() {
+// Cache ukuran container & gambar agar tidak getBoundingClientRect() tiap frame
+var _fpCache = { stageW: 0, stageH: 0, natW: 0, natH: 0, valid: false };
+
+function invalidateFpCache() { _fpCache.valid = false; }
+
+function getFpCache() {
+  if (_fpCache.valid) return _fpCache;
+  var container = document.getElementById('fp-pick-container');
+  var img = document.getElementById('fp-pick-img');
+  if (!container || !img) return _fpCache;
+  var rect = container.getBoundingClientRect();
+  _fpCache.stageW = rect.width;
+  _fpCache.stageH = rect.height;
+  _fpCache.natW   = img.naturalWidth  || rect.width;
+  _fpCache.natH   = img.naturalHeight || rect.height;
+  _fpCache.containerLeft = rect.left;
+  _fpCache.containerTop  = rect.top;
+  _fpCache.valid  = true;
+  return _fpCache;
+}
+
+// RAF handle — satu frame render per cycle, tidak tumpuk-tumpuk
+var _fpRafId = null;
+function scheduleFpRender() {
+  if (_fpRafId) return;
+  _fpRafId = requestAnimationFrame(function() {
+    _fpRafId = null;
+    _applyFpZoomNow();
+  });
+}
+
+function _applyFpZoomNow() {
   var stage = document.getElementById('fp-pick-stage');
   if (!stage) return;
-  // Gunakan transform-origin: 0 0 agar math anchor pinch sederhana dan presisi.
   stage.style.transformOrigin = '0 0';
   stage.style.transform = 'translate(' + fpzState.x + 'px,' + fpzState.y + 'px) scale(' + fpzState.scale + ')';
-  stage.style.transition = fpzState.dragging ? 'none' : 'transform 0.12s ease';
-  // Reposisi marker layer (di luar stage) agar ukuran marker tetap saat zoom/pan
-  repositionFpMarkers();
+  // Tidak pakai CSS transition — kita handle di JS agar marker selalu sync
+  stage.style.transition = 'none';
+  _repositionMarkersNow();
 }
+
+function applyFpZoom() { scheduleFpRender(); }
+
+// Reposisi marker — pakai transform:translate() bukan left/top → zero reflow
+function _repositionMarkersNow() {
+  var markersEl = document.getElementById('fp-pick-markers');
+  if (!markersEl) return;
+  var markers = markersEl.querySelectorAll('.fp-defect-marker');
+  if (!markers.length) return;
+
+  var c = getFpCache();
+  if (!c.stageW || !c.stageH) return;
+
+  // Area gambar dalam stage (object-fit:contain) pada scale=1
+  var imgScale  = Math.min(c.stageW / c.natW, c.stageH / c.natH);
+  var rendW     = c.natW * imgScale;
+  var rendH     = c.natH * imgScale;
+  var imgOffX   = (c.stageW - rendW) / 2;
+  var imgOffY   = (c.stageH - rendH) / 2;
+
+  var sc = fpzState.scale;
+  var tx = fpzState.x;
+  var ty = fpzState.y;
+
+  for (var i = 0; i < markers.length; i++) {
+    var m = markers[i];
+    var mx = parseFloat(m.getAttribute('data-mx'));
+    var my = parseFloat(m.getAttribute('data-my'));
+    if (isNaN(mx) || isNaN(my)) continue;
+    // Posisi dalam ruang stage (origin 0,0 stage)
+    var pxS = imgOffX + (mx / 100) * rendW;
+    var pyS = imgOffY + (my / 100) * rendH;
+    // Terapkan transform stage → koordinat container
+    var pxC = tx + pxS * sc;
+    var pyC = ty + pyS * sc;
+    // Gunakan transform:translate agar tidak trigger layout reflow
+    m.style.left = '0';
+    m.style.top  = '0';
+    m.style.transform = 'translate(calc(' + pxC + 'px - 50%), calc(' + pyC + 'px - 50%))';
+  }
+}
+
+// Panggil langsung (tanpa RAF) saat butuh sinkron — misal setelah gambar load
+function repositionFpMarkers() { _repositionMarkersNow(); }
 
 function fpzDist(t0, t1) {
   var dx = t1.clientX - t0.clientX, dy = t1.clientY - t0.clientY;
