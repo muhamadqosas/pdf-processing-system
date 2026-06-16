@@ -197,10 +197,21 @@
   .progress-bar-fill { height: 100%; border-radius: 20px; background: linear-gradient(90deg, var(--blue-primary), var(--blue-secondary)); width: 0%; transition: width 0.4s ease; }
   .progress-label { font-size: 13px; font-weight: 700; color: var(--blue-primary); text-align: right; margin-bottom: 20px; }
   .modal-done { display: none; text-align: center; padding: 8px 0; }
-  .modal-done i { font-size: 38px; color: var(--success); margin-bottom: 10px; display: block; }
+  .modal-done-icon { width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--success), #1e9450); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; box-shadow: 0 4px 16px rgba(22,163,74,0.3); }
+  .modal-done-icon i { font-size: 26px; color: #fff; margin: 0; display: block; }
+  .modal-done-icon.is-error { background: linear-gradient(135deg, var(--danger), #b91c1c); box-shadow: 0 4px 16px rgba(220,38,38,0.3); }
   .modal-done h3 { font-size: 15px; font-weight: 800; color: var(--text-dark); margin-bottom: 6px; }
-  .modal-done p { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 16px; }
+  .modal-done p { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 18px; }
   .modal-footer { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .download-actions { display: flex; gap: 10px; margin-bottom: 10px; }
+  .btn-download { flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 16px 10px; border-radius: 10px; font-size: 12.5px; font-weight: 700; text-align: center; }
+  .btn-download i { font-size: 22px; margin: 0; }
+  .btn-download.btn-primary { background: linear-gradient(135deg, var(--blue-primary), var(--blue-secondary)); box-shadow: 0 3px 12px rgba(15,76,129,0.25); }
+  .btn-download.btn-outline { border: 1.5px solid var(--border); color: var(--blue-primary); background: var(--blue-light); }
+  .btn-download.btn-outline i { color: var(--success); }
+  .btn-download.btn-outline:hover { border-color: var(--blue-secondary); background: #ddeeff; }
+  .btn-close-full { width: 100%; justify-content: center; background: var(--white); color: var(--text-secondary); border: 1.5px solid var(--border); }
+  .btn-close-full:hover { background: #F5F9FD; color: var(--text-dark); border-color: #c7d7e8; }
 
   /* ===== PICK OVERLAY ===== */
   #pick-overlay { display: none; }
@@ -375,17 +386,19 @@
       </div>
     </div>
     <div class="modal-done" id="gen-done-view">
-      <i class="bi bi-check-circle-fill"></i>
+      <div class="modal-done-icon"><i class="bi bi-check-lg"></i></div>
       <h3>Laporan Berhasil Dibuat</h3>
       <p>File siap untuk diunduh</p>
+      <div class="download-actions">
+        <button class="btn btn-download btn-primary" onclick="downloadReportFile('pdf')"><i class="bi bi-filetype-pdf"></i> Download PDF</button>
+        <button class="btn btn-download btn-outline" onclick="downloadReportFile('csv')"><i class="bi bi-filetype-csv"></i> Download CSV</button>
+      </div>
       <div class="modal-footer">
-        <button class="btn btn-primary" onclick="downloadReportFile('pdf')"><i class="bi bi-filetype-pdf"></i> Download PDF</button>
-        <button class="btn btn-outline" onclick="downloadReportFile('csv')"><i class="bi bi-filetype-csv"></i> Download CSV</button>
-        <button class="btn btn-outline" onclick="closeGenModal()"><i class="bi bi-x"></i> Tutup</button>
+        <button class="btn btn-close-full" onclick="closeGenModal()"><i class="bi bi-x"></i> Tutup</button>
       </div>
     </div>
     <div class="modal-done" id="gen-error-view" style="display:none;">
-      <i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);"></i>
+      <div class="modal-done-icon is-error"><i class="bi bi-exclamation-lg"></i></div>
       <h3>Gagal Membuat Laporan</h3>
       <p id="gen-error-msg">Terjadi kesalahan saat memproses laporan.</p>
       <div class="modal-footer">
@@ -2249,14 +2262,14 @@ function stopPolling() {
 function showGenDone() {
   document.getElementById('gen-progress-view').style.display = 'none';
   document.getElementById('gen-error-view').style.display = 'none';
-  document.getElementById('gen-done-view').style.display = 'block';
+  document.getElementById('gen-done-view').style.display = '';
   toast('Laporan berhasil dibuat', 'success');
 }
 
 function showGenError(msg) {
   document.getElementById('gen-progress-view').style.display = 'none';
   document.getElementById('gen-done-view').style.display = 'none';
-  document.getElementById('gen-error-view').style.display = 'block';
+  document.getElementById('gen-error-view').style.display = '';
   document.getElementById('gen-error-msg').textContent = msg || 'Terjadi kesalahan saat memproses laporan.';
   toast('Gagal membuat laporan', 'warning');
 }
