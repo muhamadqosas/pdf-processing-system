@@ -140,22 +140,6 @@
   .foto-btn-change:hover { background: var(--blue-primary); }
   input[type=file] { display: none; }
 
-  /* ===== FOTO OFFLINE BADGE ===== */
-  .foto-offline-badge {
-    position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%);
-    background: var(--orange); color: #fff; font-size: 8px; font-weight: 800;
-    padding: 1px 5px; border-radius: 20px; border: 1.5px solid #fff;
-    white-space: nowrap; z-index: 6; letter-spacing: 0.3px; pointer-events: none;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.18);
-  }
-  .foto-offline-retry {
-    position: absolute; bottom: -7px; right: -7px;
-    width: 18px; height: 18px; border-radius: 50%;
-    background: var(--orange); border: 1.5px solid #fff; color: #fff;
-    font-size: 9px; display: flex; align-items: center; justify-content: center;
-    cursor: pointer; z-index: 6; line-height: 1;
-  }
-  .foto-offline-retry:hover { background: #c2410c; }
   .foto-thumb-wrap.is-offline { border-color: var(--border); }
 
   /* ===== BUTTONS ===== */
@@ -950,9 +934,8 @@ function renderDefectRow(ubId, area, d, i) {
 
   var fotoCell;
   if (d.foto) {
-    var isOffline = !!d.fotoOffline;
     fotoCell = '<div class="foto-cell-filled">' +
-      '<div class="foto-thumb-wrap' + (isOffline ? ' is-offline' : '') + '">' +
+      '<div class="foto-thumb-wrap">' +
         '<img class="foto-thumb" src="' + d.foto + '" onclick="openPhotoModal(\'' + d.id + '\')" title="Klik untuk zoom">' +
         '<label class="foto-btn-change" title="Ganti foto"><i class="bi bi-arrow-repeat"></i>' +
           '<input type="file" accept="image/*" onchange="changeFoto(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\',this)">' +
@@ -996,9 +979,8 @@ function renderDefectCard(ubId, area, d, i) {
 
   var fotoCell;
   if (d.foto) {
-    var isOffline2 = !!d.fotoOffline;
     fotoCell = '<div class="foto-cell-filled">' +
-      '<div class="foto-thumb-wrap' + (isOffline2 ? ' is-offline' : '') + '">' +
+      '<div class="foto-thumb-wrap">' +
         '<img class="foto-thumb" src="' + d.foto + '" onclick="openPhotoModal(\'' + d.id + '\')" title="Klik untuk zoom">' +
         '<label class="foto-btn-change" title="Ganti foto"><i class="bi bi-arrow-repeat"></i>' +
           '<input type="file" accept="image/*" onchange="changeFoto(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\',this)">' +
@@ -1391,14 +1373,16 @@ async function changeFoto(ubId, areaId, defectId, input) {
   }
 
   // Tampilkan preview lokal segera — TANPA re-render seluruh halaman
+  // fotoOffline = false karena backend sudah mendukung Base64 Data URL langsung
   d.fotoUploading = false;
   d.foto = dataUrl;
-  d.fotoOffline = true;
+  d.fotoOffline = false;
   d.fotoFileId = null;
   _pendingFotoFiles[defectId] = file;
   patchFotoCell(ubId, areaId, d, area);
+  saveSession();
 
-  // Coba upload ke backend
+  // Coba upload ke backend untuk mendapatkan URL permanen (opsional)
   try {
     var form = new FormData();
     form.append('file', file);
@@ -1415,94 +1399,13 @@ async function changeFoto(ubId, areaId, defectId, input) {
     delete _pendingFotoFiles[defectId];
     patchFotoCell(ubId, areaId, d, area);
     saveSession();
-    toast('Foto berhasil diunggah', 'success');
   } catch (err) {
-    // Upload gagal → simpan lokal (base64), tidak perlu notif
-    d.fotoOffline = true;
-    d.fotoUploading = false;
-    patchFotoCell(ubId, areaId, d, area);
-    saveSession();
-  }
-}
-
-// Coba upload ulang foto yang masih offline
-async function retryFotoUpload(ubId, areaId, defectId) {
-  var ub = findUb(ubId);
-  if (!ub) return;
-  var area = findArea(ub, areaId);
-  if (!area) return;
-  var d = findDefect(area, defectId);
-  if (!d || !d.foto || !d.fotoOffline) return;
-
-  var file = _pendingFotoFiles[defectId];
-
-  // Jika file tidak ada di memori (misal setelah reload), convert dataUrl ke File
-  if (!file && d.foto && d.foto.startsWith('data:')) {
-    try {
-      var arr = d.foto.split(',');
-      var mime = arr[0].match(/:(.*?);/)[1];
-      var bstr = atob(arr[1]);
-      var n = bstr.length;
-      var u8arr = new Uint8Array(n);
-      for (var i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
-      file = new File([u8arr], 'photo_' + defectId + '.jpg', { type: mime });
-      _pendingFotoFiles[defectId] = file;
-    } catch (e) {
-      toast('Gagal menyiapkan ulang foto untuk upload', 'warning');
-      return;
-    }
-  }
-
-  if (!file) {
-    toast('File foto tidak ditemukan, pilih ulang foto', 'warning');
-    return;
-  }
-
-  d.fotoUploading = true;
-  patchFotoCell(ubId, areaId, d, area);
-
-  try {
-    var form = new FormData();
-    form.append('file', file);
-    form.append('defect_id', defectId);
-    var res = await fetch(api('/api/upload-photo'), { method: 'POST', body: form, signal: AbortSignal.timeout(30000) });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    var data = await res.json();
-    if (data.success === false) throw new Error(data.message || 'Upload gagal');
-
-    d.fotoFileId = data.file_id || data.id || null;
-    d.foto = data.url || data.file_url || (d.fotoFileId ? api('/api/photo/' + d.fotoFileId) : d.foto);
+    // Upload ke server gagal — foto Base64 tetap valid untuk dikirim ke /generate-report
     d.fotoOffline = false;
     d.fotoUploading = false;
-    delete _pendingFotoFiles[defectId];
-    patchFotoCell(ubId, areaId, d, area);
     saveSession();
-    toast('Foto berhasil diunggah ke server', 'success');
-  } catch (err) {
-    d.fotoUploading = false;
-    patchFotoCell(ubId, areaId, d, area);
-    toast('Masih offline — foto tetap tersimpan lokal', 'warning');
   }
 }
-
-// Auto-retry semua foto offline saat koneksi kembali
-window.addEventListener('online', function() {
-  var found = false;
-  for (var i = 0; i < unitBlocks.length; i++) {
-    var ub = unitBlocks[i];
-    for (var j = 0; j < ub.areas.length; j++) {
-      var area = ub.areas[j];
-      for (var k = 0; k < area.defects.length; k++) {
-        var d = area.defects[k];
-        if (d.fotoOffline && d.foto) {
-          found = true;
-          retryFotoUpload(ub.id, area.id, d.id);
-        }
-      }
-    }
-  }
-  if (found) toast('Koneksi kembali — mencoba upload foto offline...', 'info');
-});
 
 function removeFoto(ubId, areaId, defectId) {
   var ub = findUb(ubId);
