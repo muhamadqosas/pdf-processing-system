@@ -174,8 +174,24 @@
   .btn-outline:hover { background: var(--blue-light); }
   .btn-danger-sm { background: var(--danger); color: #fff; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; }
   .btn-danger-sm:hover { background: #b91c1c; }
-  .btn-add-defect { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px; border: 1.5px dashed var(--blue-secondary); font-size: 13px; font-weight: 600; cursor: pointer; background: var(--blue-light); color: var(--blue-primary); transition: all 0.18s; margin: 12px; }
+  .btn-add-defect { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px; border: 1.5px dashed var(--blue-secondary); font-size: 13px; font-weight: 600; cursor: pointer; background: var(--blue-light); color: var(--blue-primary); transition: all 0.18s; margin: 12px 6px 12px 12px; }
   .btn-add-defect:hover { background: #d4eaff; border-style: solid; }
+  .btn-batch-import { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px; border: 1.5px dashed #7C3AED; font-size: 13px; font-weight: 600; cursor: pointer; background: #F5F3FF; color: #7C3AED; transition: all 0.18s; margin: 12px 12px 12px 0; }
+  .btn-batch-import:hover { background: #EDE9FE; border-style: solid; }
+  .defect-action-row { display: flex; align-items: center; flex-wrap: wrap; gap: 0; }
+
+  /* Validation: error border merah persisten pada field */
+  .field-error-persistent { border-color: var(--danger) !important; box-shadow: 0 0 0 3px rgba(220,38,38,0.15) !important; }
+  .label-error-persistent { border-color: var(--danger) !important; background: #fff5f5 !important; color: var(--danger) !important; }
+  .marker-error-persistent { border-color: var(--danger) !important; background: #fff5f5 !important; color: var(--danger) !important; box-shadow: 0 0 0 2px rgba(220,38,38,0.18) !important; }
+  .area-error-persistent { border-bottom-color: var(--danger) !important; background: #fff5f5 !important; }
+  .block-error-persistent { box-shadow: 0 0 0 2px var(--danger) !important; }
+
+  /* Validation summary banner */
+  .validation-banner { background: #FEF2F2; border: 1.5px solid #FECACA; border-radius: 8px; padding: 10px 14px; margin: 8px 12px 0; display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; color: #991B1B; font-weight: 500; line-height: 1.5; animation: fadeIn 0.2s ease; }
+  .validation-banner i { color: var(--danger); font-size: 15px; flex-shrink: 0; margin-top: 1px; }
+  .validation-banner ul { margin: 4px 0 0 16px; padding: 0; }
+  .validation-banner li { margin-bottom: 1px; }
   .btn-add-area { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 8px; border: 1.5px dashed var(--border); font-size: 12px; font-weight: 600; cursor: pointer; background: #F8FBFF; color: var(--text-secondary); transition: all 0.18s; }
   .btn-add-area:hover { border-color: var(--blue-secondary); color: var(--blue-primary); background: var(--blue-light); }
   .btn-generate { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; padding: 14px; border-radius: 10px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; background: linear-gradient(90deg, var(--blue-primary), var(--blue-secondary)); color: #fff; transition: all 0.2s; letter-spacing: 0.3px; box-shadow: 0 4px 16px rgba(15,76,129,0.25); }
@@ -1007,9 +1023,14 @@ function renderAreaHTML(ub, area) {
       '</div>' +
       '<div class="defect-card" id="dcards-' + area.id + '">' + cards + '</div>' +
       emptyHtml +
-      '<button class="btn-add-defect" onclick="addDefect(\'' + ub.id + '\',\'' + area.id + '\')">' +
-        '<i class="bi bi-plus-circle-fill"></i> Tambah Defect' +
-      '</button>' +
+      '<div class="defect-action-row">' +
+        '<button class="btn-add-defect" onclick="addDefect(\'' + ub.id + '\',\'' + area.id + '\')">' +
+          '<i class="bi bi-plus-circle-fill"></i> Tambah Defect' +
+        '</button>' +
+        '<label class="btn-batch-import" title="Upload banyak foto sekaligus — tiap foto otomatis membuat satu defect baru" onclick="batchImportFoto(\'' + ub.id + '\',\'' + area.id + '\')">' +
+          '<i class="bi bi-images"></i> Batch Import Foto' +
+        '</label>' +
+      '</div>' +
     '</div>' +
   '</div>';
 }
@@ -1331,6 +1352,55 @@ function addDefect(ubId, areaId) {
   patchAreaDefects(ub, area);
   saveSession();
   toast('Defect berhasil ditambahkan', 'success');
+}
+
+// ══════════════════════════════════════════════
+//  BATCH IMPORT FOTO
+// ══════════════════════════════════════════════
+function batchImportFoto(ubId, areaId) {
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  inp.multiple = true;
+  inp.onchange = async function() {
+    var files = Array.prototype.slice.call(inp.files || []);
+    if (!files.length) return;
+
+    var ub = findUb(ubId);
+    if (!ub) return;
+    var area = findArea(ub, areaId);
+    if (!area) return;
+
+    toast('Membuat ' + files.length + ' defect dari ' + files.length + ' foto...', 'info');
+
+    // Buat defect baru untuk setiap foto
+    var newDefects = [];
+    for (var i = 0; i < files.length; i++) {
+      var d = { id: uid(), desc: '', foto: null, fotoFileId: null, fotoUploading: true, fotoOffline: false, marker: null };
+      area.defects.push(d);
+      newDefects.push({ defect: d, file: files[i] });
+    }
+
+    patchAreaDefects(ub, area);
+    saveSession();
+
+    // Upload / preview setiap foto
+    for (var j = 0; j < newDefects.length; j++) {
+      (function(item) {
+        var d = item.defect;
+        var file = item.file;
+        changeFotoFile(ubId, areaId, d.id, file);
+      })(newDefects[j]);
+    }
+  };
+  inp.click();
+}
+
+// Helper: proses satu file foto langsung ke defect tertentu (dipakai oleh batchImportFoto)
+function changeFotoFile(ubId, areaId, defectId, file) {
+  // Buat fake input object seperti yang diharapkan changeFoto
+  var fakeInput = { files: [file] };
+  changeFoto(ubId, areaId, defectId, fakeInput);
 }
 
 function deleteDefect(ubId, areaId, defectId) {
@@ -2178,141 +2248,144 @@ function toast(msg, type) {
 }
 
 // ══════════════════════════════════════════════
-//  VALIDATE
+//  VALIDATE — highlight SEMUA field error sekaligus
 // ══════════════════════════════════════════════
-function scrollToAndHighlight(el, blockEl) {
-  var target = blockEl || el;
-  if (!target) return;
-  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  var cls = (el && el.classList && (el.tagName === 'INPUT' || el.tagName === 'SELECT')) ? 'field-error-highlight' : 'block-error-highlight';
-  var highlightTarget = el || blockEl;
-  highlightTarget.classList.add(cls);
-  setTimeout(function() {
-    highlightTarget.classList.remove(cls);
-  }, 3000);
-  if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT')) {
-    setTimeout(function() { el.focus(); }, 300);
-  }
-}
 
-function highlightErrorField(el, type) {
-  if (!el) return;
-  var cls = type === 'desc' ? 'desc-error'
-           : type === 'marker' ? 'marker-error'
-           : type === 'area' ? 'area-error'
-           : 'field-error-highlight';
-  el.classList.add(cls);
-  setTimeout(function() { el.classList.remove(cls); }, 3500);
+// Hapus semua highlight error dari sesi validasi sebelumnya
+function clearAllValidationHighlights() {
+  var els = document.querySelectorAll('.field-error-persistent, .label-error-persistent, .marker-error-persistent, .area-error-persistent, .block-error-persistent');
+  for (var i = 0; i < els.length; i++) {
+    els[i].classList.remove('field-error-persistent', 'label-error-persistent', 'marker-error-persistent', 'area-error-persistent', 'block-error-persistent');
+  }
+  var banners = document.querySelectorAll('.validation-banner');
+  for (var b = 0; b < banners.length; b++) banners[b].parentNode.removeChild(banners[b]);
 }
 
 function validateAll() {
+  clearAllValidationHighlights();
+
   if (unitBlocks.length === 0) {
     toast('Belum ada data unit', 'warning');
     return false;
   }
+
+  var errors = []; // array of { msg, scrollTarget, ubIdx }
+  var firstScrollTarget = null;
+
   for (var i = 0; i < unitBlocks.length; i++) {
     var ub = unitBlocks[i];
+    var ubLabel = 'Blok ke-' + (i + 1);
     var ubBlockEl = document.getElementById('ub-block-' + ub.id);
+
+    // Tower (hanya validasi jika belum dipilih — field selalu ada value default)
+    if (!ub.tower) {
+      var towerSel = document.getElementById('tower-sel-' + ub.id);
+      if (towerSel) towerSel.classList.add('field-error-persistent');
+      errors.push({ msg: ubLabel + ': Tower belum dipilih', scrollTarget: towerSel || ubBlockEl });
+      if (!firstScrollTarget) firstScrollTarget = towerSel || ubBlockEl;
+    }
+
     if (!ub.lantai) {
-      toast('Lantai belum dipilih pada blok ke-' + (i+1), 'warning');
-      scrollToAndHighlight(document.getElementById('lantai-sel-' + ub.id), ubBlockEl);
-      return false;
+      var lantaiSel = document.getElementById('lantai-sel-' + ub.id);
+      if (lantaiSel) lantaiSel.classList.add('field-error-persistent');
+      errors.push({ msg: ubLabel + ': Lantai belum dipilih', scrollTarget: lantaiSel || ubBlockEl });
+      if (!firstScrollTarget) firstScrollTarget = lantaiSel || ubBlockEl;
     }
+
     if (!ub.unit) {
-      toast('Unit belum dipilih pada blok ke-' + (i+1), 'warning');
-      scrollToAndHighlight(document.getElementById('unit-sel-' + ub.id), ubBlockEl);
-      return false;
+      var unitSel = document.getElementById('unit-sel-' + ub.id);
+      if (unitSel) unitSel.classList.add('field-error-persistent');
+      errors.push({ msg: ubLabel + ': Unit belum dipilih', scrollTarget: unitSel || ubBlockEl });
+      if (!firstScrollTarget) firstScrollTarget = unitSel || ubBlockEl;
     }
-    if (!ub.date) {
-      toast('Tanggal belum diisi pada blok ke-' + (i+1), 'warning');
-      var dateWrap = document.getElementById('date-input-' + ub.id);
-      var dateTextEl = dateWrap ? dateWrap.previousElementSibling : null;
-      scrollToAndHighlight(dateTextEl || dateWrap, ubBlockEl);
-      return false;
-    }
+
     for (var j = 0; j < ub.areas.length; j++) {
       var area = ub.areas[j];
       var areaBlockEl = document.getElementById('area-block-' + area.id);
-        if (!area.areaName || area.areaName.trim() === '') {
-        toast('Nama area ke-' + (j+1) + ' belum diisi pada unit ' + ub.unit, 'warning');
+      var areaLabel = area.areaName ? '"' + area.areaName + '"' : 'Area ke-' + (j + 1);
+
+      if (!area.areaName || area.areaName.trim() === '') {
         var areaNameEl = document.getElementById('area-name-' + area.id);
-        // Scroll instant, highlight merah, langsung fokus agar keyboard muncul
-        if (areaNameEl) {
-          areaNameEl.scrollIntoView({ behavior: 'instant', block: 'center' });
-          highlightErrorField(areaNameEl, 'area');
-          areaNameEl.focus();
-          areaNameEl.select();
-        } else if (areaBlockEl) {
-          areaBlockEl.scrollIntoView({ behavior: 'instant', block: 'center' });
-        }
-        if (areaBlockEl) {
-          areaBlockEl.classList.add('block-error-highlight');
-          setTimeout(function(el) { return function() { el.classList.remove('block-error-highlight'); }; }(areaBlockEl), 3500);
-        }
-        return false;
+        if (areaNameEl) areaNameEl.classList.add('area-error-persistent');
+        if (areaBlockEl) areaBlockEl.classList.add('block-error-persistent');
+        errors.push({ msg: ubLabel + ': Nama area ke-' + (j + 1) + ' belum diisi', scrollTarget: areaNameEl || areaBlockEl });
+        if (!firstScrollTarget) firstScrollTarget = areaNameEl || areaBlockEl;
       }
+
       if (area.defects.length === 0) {
-        toast('Area "' + area.areaName + '" pada unit ' + ub.unit + ' belum ada defect', 'warning');
-        scrollToAndHighlight(null, areaBlockEl);
-        return false;
+        if (areaBlockEl) areaBlockEl.classList.add('block-error-persistent');
+        errors.push({ msg: ubLabel + ' ' + areaLabel + ': Belum ada defect', scrollTarget: areaBlockEl });
+        if (!firstScrollTarget) firstScrollTarget = areaBlockEl;
       }
+
       for (var k = 0; k < area.defects.length; k++) {
         var d = area.defects[k];
+        var defectNo = '#' + (k + 1);
+
+        if (d.fotoUploading) {
+          errors.push({ msg: ubLabel + ' ' + areaLabel + ' Defect ' + defectNo + ': Tunggu foto selesai diunggah', scrollTarget: areaBlockEl });
+          if (!firstScrollTarget) firstScrollTarget = areaBlockEl;
+        }
+
         if (!d.desc || d.desc.trim() === '') {
-          toast('Deskripsi defect #' + (k+1) + ' di area "' + area.areaName + '" belum diisi', 'warning');
-          // Highlight merah + langsung fokus supaya keyboard muncul (mobile)
           var descElDesk = document.getElementById('desc-' + d.id);
           var descElMob = document.getElementById('dcdesc-' + d.id);
-          var descEl = descElDesk || descElMob;
-          if (descEl) {
-            // Scroll instant agar elemen visible dulu, lalu langsung focus tanpa delay
-            descEl.scrollIntoView({ behavior: 'instant', block: 'center' });
-            descEl.focus();
-            descEl.select();
-          } else if (areaBlockEl) {
-            areaBlockEl.scrollIntoView({ behavior: 'instant', block: 'center' });
-          }
-          if (descElDesk) highlightErrorField(descElDesk, 'desc');
-          if (descElMob) highlightErrorField(descElMob, 'desc');
-          return false;
+          if (descElDesk) descElDesk.classList.add('field-error-persistent');
+          if (descElMob) descElMob.classList.add('field-error-persistent');
+          errors.push({ msg: ubLabel + ' ' + areaLabel + ' Defect ' + defectNo + ': Deskripsi pekerjaan belum diisi', scrollTarget: descElDesk || descElMob || areaBlockEl });
+          if (!firstScrollTarget) firstScrollTarget = descElDesk || descElMob || areaBlockEl;
         }
+
         if (!d.marker) {
-          toast('Marker lokasi defect #' + (k+1) + ' di area "' + area.areaName + '" belum dipilih', 'warning');
-          // Highlight merah pada tombol marker (desktop & mobile)
-          var markerBtns = [];
+          // Highlight tombol marker (desktop & mobile)
           var rowEl = document.querySelector('tr[data-defect-id="' + d.id + '"]');
-          if (rowEl) {
-            var mb = rowEl.querySelector('.btn-marker');
-            if (mb) markerBtns.push(mb);
-          }
+          if (rowEl) { var mb = rowEl.querySelector('.btn-marker'); if (mb) mb.classList.add('marker-error-persistent'); }
           var cardEl = document.querySelector('.dc-item[data-defect-id="' + d.id + '"]');
-          if (cardEl) {
-            var mb2 = cardEl.querySelector('.btn-marker');
-            if (mb2) markerBtns.push(mb2);
-          }
-          // Fallback: cari semua btn-marker di area block
-          if (markerBtns.length === 0 && areaBlockEl) {
-            var allMb = areaBlockEl.querySelectorAll('.btn-marker:not(.has-marker)');
-            // Ambil yang ke-(k) karena urutan defect
-            if (allMb[k]) markerBtns.push(allMb[k]);
-          }
-          for (var m = 0; m < markerBtns.length; m++) highlightErrorField(markerBtns[m], 'marker');
-          if (areaBlockEl) {
-            areaBlockEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            areaBlockEl.classList.add('block-error-highlight');
-            setTimeout(function(el) { return function() { el.classList.remove('block-error-highlight'); }; }(areaBlockEl), 3500);
-          }
-          return false;
+          if (cardEl) { var mb2 = cardEl.querySelector('.btn-marker'); if (mb2) mb2.classList.add('marker-error-persistent'); }
+          errors.push({ msg: ubLabel + ' ' + areaLabel + ' Defect ' + defectNo + ': Marker lokasi belum dipilih', scrollTarget: areaBlockEl });
+          if (!firstScrollTarget) firstScrollTarget = areaBlockEl;
         }
-        if (d.fotoUploading) {
-          toast('Tunggu sampai proses foto selesai', 'warning');
-          scrollToAndHighlight(null, areaBlockEl);
-          return false;
+
+        if (!d.foto) {
+          // Highlight label "Pilih Foto"
+          var fotoLbl = document.getElementById('fotolabel-' + d.id) || document.getElementById('fotolabel-dc-' + d.id);
+          if (fotoLbl) fotoLbl.classList.add('label-error-persistent');
+          errors.push({ msg: ubLabel + ' ' + areaLabel + ' Defect ' + defectNo + ': Foto belum diunggah', scrollTarget: fotoLbl || areaBlockEl });
+          if (!firstScrollTarget) firstScrollTarget = fotoLbl || areaBlockEl;
         }
       }
     }
   }
-  return true;
+
+  if (errors.length === 0) return true;
+
+  // Toast ringkasan
+  toast(errors.length + ' field belum lengkap — lihat indikator merah', 'warning');
+
+  // Scroll ke elemen bermasalah pertama
+  if (firstScrollTarget) {
+    firstScrollTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  // Tampilkan banner ringkasan error di bawah form (di atas tombol generate)
+  var generateCard = document.querySelector('.card:last-of-type .card-body');
+  if (generateCard) {
+    var listItems = errors.slice(0, 10).map(function(e) { return '<li>' + escHtml(e.msg) + '</li>'; }).join('');
+    var moreText = errors.length > 10 ? '<li>...dan ' + (errors.length - 10) + ' masalah lainnya</li>' : '';
+    var banner = document.createElement('div');
+    banner.className = 'validation-banner';
+    banner.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i>' +
+      '<div><strong>' + errors.length + ' data belum lengkap:</strong><ul>' + listItems + moreText + '</ul></div>';
+    generateCard.insertBefore(banner, generateCard.firstChild);
+
+    // Auto-hapus banner setelah 8 detik
+    setTimeout(function() { if (banner.parentNode) banner.parentNode.removeChild(banner); }, 8000);
+  }
+
+  // Hapus highlight setelah 5 detik
+  setTimeout(function() { clearAllValidationHighlights(); }, 5000);
+
+  return false;
 }
 
 // ══════════════════════════════════════════════
