@@ -2170,7 +2170,8 @@ async function openGenModal(recovering) {
     var data = await res.json();
     if (data.success === false) throw new Error(data.message || 'Gagal memulai proses laporan');
 
-    jobId = data.job_id;
+    jobId = data.job_id || data.jobId || data.id || data.task_id;
+    if (!jobId) throw new Error('Server tidak mengembalikan job_id');
     saveSession();
     applyBackendData({ status: data.status || 'waiting', progress: 0, stage: null });
     startPolling();
