@@ -232,7 +232,13 @@
   /* ===== FLOORPLAN PICK MODAL ===== */
   #fp-pick-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 8000; align-items: center; justify-content: center; padding: 12px; animation: fadeIn 0.18s ease; }
   #fp-pick-modal.active { display: flex; }
-  .fp-modal-box { background: var(--white); border-radius: 14px; box-shadow: 0 12px 60px rgba(0,0,0,0.45); width: 100%; max-width: min(1280px, calc(100vw - 24px)); height: calc(100vh - 24px); max-height: calc(100vh - 24px); overflow: hidden; display: flex; flex-direction: column; animation: modalIn 0.22s ease; }
+  .fp-modal-box { background: var(--white); border-radius: 14px; box-shadow: 0 12px 60px rgba(0,0,0,0.45); width: 100%; max-width: min(1280px, calc(100vw - 24px)); height: calc(100vh - 24px); max-height: calc(100vh - 24px); overflow: hidden; display: flex; flex-direction: column; animation: fpModalIn 0.18s ease; }
+  /* CATATAN FIX MARKER BERGESER: dulu pakai animasi "modalIn" yang men-transform:scale(0.94->1)
+     pada .fp-modal-box. Saat JS mengukur getBoundingClientRect() container tepat di awal animasi
+     (sebelum scale selesai mencapai 1), ukuran yang terbaca masih lebih kecil dari ukuran final —
+     titik marker yang dihitung/disimpan jadi meleset & "loncat" tiap kali popup dibuka/ditutup.
+     fpModalIn di bawah ini HANYA fade opacity, tidak ada transform sama sekali, sehingga ukuran
+     container sudah akurat sejak frame pertama. */
   .fp-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--border); background: linear-gradient(90deg, var(--blue-light), var(--white)); flex-shrink: 0; }
   .fp-modal-title { font-size: 15px; font-weight: 800; color: var(--blue-primary); display: flex; align-items: center; gap: 8px; }
   .fp-modal-hint { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
@@ -325,6 +331,7 @@
 
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes modalIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+  @keyframes fpModalIn { from { opacity: 0; } to { opacity: 1; } }
   @keyframes toastIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
   @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(30px); } }
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -1763,6 +1770,15 @@ function startPick(ubId, areaId, defectId) {
   resetFpZoom();
   document.getElementById('fp-pick-modal').classList.add('active');
   lockPageZoom();
+  ensureFpResizeObserver();
+  // FIX MARKER BERGESER: double rAF menunggu browser benar-benar selesai layout & paint
+  // setelah modal tampil (lapisan pengaman tambahan, independen dari timing load gambar).
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      invalidateFpCache();
+      repositionFpMarkers();
+    });
+  });
 
   // Reposisi marker saat ukuran window berubah
   if (!window._fpResizeListener) {
@@ -1907,6 +1923,23 @@ var _fpCache = { stageW: 0, stageH: 0, natW: 0, natH: 0, valid: false };
 
 function invalidateFpCache() { _fpCache.valid = false; }
 
+// FIX MARKER BERGESER: ResizeObserver mengunci ulang posisi marker setiap kali ukuran
+// #fp-pick-container benar-benar berubah (resize window, rotasi device, munculnya keyboard
+// virtual di HP, dsb) — jauh lebih akurat daripada hanya andalkan setTimeout/resize listener,
+// karena dipanggil persis saat layout selesai berubah, bukan tebak-tebak delay.
+var _fpResizeObserver = null;
+function ensureFpResizeObserver() {
+  if (_fpResizeObserver) return;
+  if (typeof ResizeObserver === 'undefined') return; // browser sangat lama, fallback ke listener resize biasa
+  var container = document.getElementById('fp-pick-container');
+  if (!container) return;
+  _fpResizeObserver = new ResizeObserver(function() {
+    invalidateFpCache();
+    repositionFpMarkers();
+  });
+  _fpResizeObserver.observe(container);
+}
+
 function getFpCache() {
   if (_fpCache.valid) return _fpCache;
   var container = document.getElementById('fp-pick-container');
@@ -1999,6 +2032,9 @@ function initFpZoomHandlers() {
   if (!container) return;
 
   container.addEventListener('touchstart', function(e) {
+    // FIX MARKER BERGESER: pastikan ukuran container/gambar selalu diukur ulang dari kondisi
+    // terkini setiap gesture baru dimulai (jaga-jaga bila ada perubahan layout di luar resize/RO).
+    invalidateFpCache();
     if (e.touches.length === 2) {
       e.preventDefault();
       fpzState.startDist  = fpzDist(e.touches[0], e.touches[1]);
@@ -2100,6 +2136,7 @@ function initFpZoomHandlers() {
   // Desktop: klik untuk tempatkan marker (drag mouse untuk pan saat zoom)
   var mouseDownPos = null, mouseMoved = false, mouseDragging = false;
   container.addEventListener('mousedown', function(e) {
+    invalidateFpCache(); // FIX MARKER BERGESER: ukur ulang dari kondisi terkini setiap klik baru
     mouseDownPos = { x: e.clientX, y: e.clientY };
     mouseMoved = false;
     mouseDragging = fpzState.scale > 1;
