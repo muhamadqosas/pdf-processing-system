@@ -61,6 +61,13 @@
   .skeleton-opt { color: var(--text-secondary); font-style: italic; }
   .btn-generate:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 
+  /* ===== DRAFT ACTION ROW ===== */
+  .draft-action-row { display: flex; gap: 10px; margin-top: 10px; }
+  .btn-draft-action { display: inline-flex; align-items: center; justify-content: center; gap: 7px; flex: 1; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--white); color: var(--text-secondary); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.18s; letter-spacing: 0.2px; text-align: center; }
+  .btn-draft-action:hover { border-color: var(--blue-secondary); color: var(--blue-primary); background: var(--blue-light); }
+  .btn-draft-reset { color: var(--danger); border-color: #fca5a5; background: #fff5f5; }
+  .btn-draft-reset:hover { border-color: var(--danger); background: #fee2e2; color: var(--danger); }
+
   /* ===== MAIN ===== */
   .main { max-width: 1200px; margin: 0 auto; padding: 16px 12px 60px; }
 
@@ -209,6 +216,7 @@
   .btn-download.btn-primary { background: linear-gradient(135deg, var(--blue-primary), var(--blue-secondary)); box-shadow: 0 3px 12px rgba(15,76,129,0.25); }
   .btn-download.btn-outline { border: 1.5px solid var(--border); color: var(--blue-primary); background: var(--blue-light); }
   .btn-download.btn-outline i { color: var(--success); }
+  .btn-download.btn-outline.btn-save-draft i { color: #065f46; }
   .btn-download.btn-outline:hover { border-color: var(--blue-secondary); background: #ddeeff; }
   .btn-close-full { width: 100%; justify-content: center; background: var(--white); color: var(--text-secondary); border: 1.5px solid var(--border); }
   .btn-close-full:hover { background: #F5F9FD; color: var(--text-dark); border-color: #c7d7e8; }
@@ -371,6 +379,16 @@
   <button class="btn-generate" id="btn-generate" onclick="openGenModal()">
     <i class="bi bi-file-earmark-arrow-down-fill"></i> Generate Outstanding Report
   </button>
+
+  <div class="draft-action-row" id="draft-action-row">
+    <label class="btn-draft-action" for="upload-draft-input" title="Muat data dari file JSON draft">
+      <i class="bi bi-upload"></i> Upload Draft
+    </label>
+    <input type="file" id="upload-draft-input" accept=".json" onchange="loadDraft(this)">
+    <button class="btn-draft-action btn-draft-reset" onclick="confirmReset()" title="Hapus semua data laporan">
+      <i class="bi bi-arrow-counterclockwise"></i> Reset
+    </button>
+  </div>
 </div>
 
 <!-- GENERATE MODAL -->
@@ -391,7 +409,7 @@
       <p>File siap untuk diunduh</p>
       <div class="download-actions">
         <button class="btn btn-download btn-primary" onclick="downloadReportFile('pdf')"><i class="bi bi-filetype-pdf"></i> Download PDF</button>
-        <button class="btn btn-download btn-outline" onclick="downloadReportFile('csv')"><i class="bi bi-filetype-csv"></i> Download CSV</button>
+        <button class="btn btn-download btn-outline" onclick="saveDraft()"><i class="bi bi-floppy-fill"></i> Save Draft</button>
       </div>
       <div class="modal-footer">
         <button class="btn btn-close-full" onclick="closeGenModal()"><i class="bi bi-x"></i> Tutup</button>
@@ -636,7 +654,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('gen-modal').addEventListener('click', function(e) {
     if (e.target === this) {
       // Jangan tutup modal saat proses generate sedang berjalan
-      if (jobId && pollIv) return;
+      if (jobId && (pollIv || animProgressIv)) return;
       closeGenModal();
     }
   });
@@ -666,12 +684,10 @@ async function init() {
         var d = await r.json();
         if (d.status === 'waiting' || d.status === 'processing') {
           openGenModal(true);
-          applyBackendData(d);
-          startPolling();
           toast('Sesi dilanjutkan setelah refresh', 'info');
-        } else if (d.status === 'completed') {
+        } else if (d.status === 'completed' || d.success === true) {
           openGenModal(true);
-          showGenDone();
+          finishAnimProgress(showGenDone);
         } else {
           jobId = null; downloadFileName = null;
           saveSession();
@@ -2127,8 +2143,68 @@ function validateAll() {
 }
 
 // ══════════════════════════════════════════════
-//  GENERATE REPORT - POST /generate-report + polling
+//  GENERATE REPORT - POST /generate-report + animasi progress
 // ══════════════════════════════════════════════
+var animProgressIv = null;
+var animProgressSteps = [5, 12, 20, 35, 50, 65, 80, 90, 95];
+var animCurrentStep = 0;
+
+function startAnimProgress() {
+  animCurrentStep = 0;
+  animProgressSteps = [5, 12, 20, 35, 50, 65, 80, 90, 95];
+  setGenProgress(0, 'Membuat laporan...');
+  if (animProgressIv) clearInterval(animProgressIv);
+
+  var delays = [300, 500, 700, 900, 1100, 1400, 1700, 2200, 3000];
+  var stepIdx = 0;
+  function nextStep() {
+    if (stepIdx >= animProgressSteps.length) return;
+    var p = animProgressSteps[stepIdx];
+    var msgs = [
+      'Menyiapkan data laporan...',
+      'Mengambil informasi unit...',
+      'Menyusun data defect...',
+      'Memproses foto lampiran...',
+      'Membuat halaman laporan...',
+      'Menambahkan marker denah...',
+      'Menyusun layout PDF...',
+      'Finalisasi dokumen...',
+      'Hampir selesai...'
+    ];
+    setGenProgress(p, msgs[stepIdx] || 'Memproses...');
+    stepIdx++;
+    if (stepIdx < animProgressSteps.length) {
+      var d = delays[stepIdx] || 1000;
+      animProgressIv = setTimeout(nextStep, d);
+    }
+  }
+  animProgressIv = setTimeout(nextStep, 200);
+}
+
+function stopAnimProgress() {
+  if (animProgressIv) { clearTimeout(animProgressIv); clearInterval(animProgressIv); animProgressIv = null; }
+}
+
+function setGenProgress(pct, label) {
+  document.getElementById('gen-progress-fill').style.width = pct + '%';
+  document.getElementById('gen-progress-label').textContent = Math.round(pct) + '%';
+  if (label) document.getElementById('gen-progress-subtitle').textContent = label;
+}
+
+function finishAnimProgress(cb) {
+  stopAnimProgress();
+  var steps = [98, 100];
+  var i = 0;
+  function go() {
+    if (i >= steps.length) { if (cb) cb(); return; }
+    setGenProgress(steps[i], i === 0 ? 'Menyimpan file...' : 'Selesai!');
+    i++;
+    setTimeout(go, i === 1 ? 300 : 400);
+  }
+  setGenProgress(95, 'Hampir selesai...');
+  setTimeout(go, 200);
+}
+
 function buildReportPayload() {
   var payload = { units: [] };
   for (var i = 0; i < unitBlocks.length; i++) {
@@ -2161,102 +2237,90 @@ async function openGenModal(recovering) {
   document.getElementById('gen-done-view').style.display = 'none';
   document.getElementById('gen-error-view').style.display = 'none';
   document.getElementById('gen-progress-title').textContent = 'Membuat Laporan...';
-  document.getElementById('gen-progress-subtitle').textContent = recovering ? 'Memantau proses sebelumnya...' : 'Mengirim data ke server...';
-  document.getElementById('gen-progress-fill').style.width = '0%';
-  document.getElementById('gen-progress-label').textContent = '0%';
+  setGenProgress(0, 'Menyiapkan...');
 
-  if (recovering) return; // jobId & polling sudah ditangani oleh init()
+  if (recovering) {
+    // Coba recover status dari backend
+    if (jobId) {
+      try {
+        var r = await fetch(api('/status/' + encodeURIComponent(jobId)), { signal: AbortSignal.timeout(5000) });
+        var d = await r.json();
+        if (d.status === 'completed') {
+          finishAnimProgress(showGenDone);
+        } else if (d.status === 'error') {
+          showGenError(d.message || 'Terjadi kesalahan');
+        } else {
+          startAnimProgress();
+        }
+      } catch (_) {
+        startAnimProgress();
+      }
+    }
+    return;
+  }
 
   cancelRequested = false;
   t0 = Date.now();
+  startAnimProgress();
 
   try {
     var res = await fetch(api('/generate-report'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(buildReportPayload()),
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(60000)
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var data = await res.json();
     if (data.success === false) throw new Error(data.message || 'Gagal memulai proses laporan');
+    if (cancelRequested) return;
 
     jobId = data.job_id || data.jobId || data.id || data.task_id;
     downloadFileName = data.filename || data.file_name || data.file || data.pdf_file || data.path || null;
 
-    if (jobId) {
-      // Mode ASYNC: backend mengembalikan job_id, lanjut polling status
+    // Selalu treat sebagai selesai jika ada downloadFileName atau success=true atau no job_id (sync)
+    if (data.success === true || downloadFileName || !jobId) {
+      if (!jobId) jobId = downloadFileName || ('sync-' + Date.now());
       saveSession();
-      applyBackendData({ status: data.status || 'waiting', progress: 0, stage: null });
-      startPolling();
-    } else if (data.status === 'completed' || data.success === true || downloadFileName) {
-      // Mode SYNC: backend langsung selesai membuat PDF dalam 1 request
-      jobId = downloadFileName || ('sync-' + Date.now());
+      finishAnimProgress(showGenDone);
+    } else if (jobId) {
+      // Ada job_id: polling sampai selesai
       saveSession();
-      applyBackendData({ status: 'completed', progress: 100, stage: 'Selesai!' });
-      showGenDone();
+      pollUntilDone(jobId);
     } else {
-      throw new Error('Server tidak mengembalikan job_id maupun status selesai');
+      throw new Error('Server tidak mengembalikan status selesai');
     }
   } catch (err) {
+    stopAnimProgress();
     showGenError(err.message || 'Tidak dapat terhubung ke server');
   }
 }
 
-function applyBackendData(data) {
-  var status = data.status;
-  var progress = (typeof data.progress === 'number') ? data.progress : null;
-  var stage = data.stage || null;
-
-  if (progress !== null) {
-    document.getElementById('gen-progress-fill').style.width = progress + '%';
-    document.getElementById('gen-progress-label').textContent = Math.round(progress) + '%';
-  }
-
-  var subtitle = stage
-    ? stage
-    : (status === 'waiting' ? 'Menunggu dalam antrian…'
-      : status === 'processing' ? 'Sedang memproses laporan…'
-      : status === 'completed' ? 'Selesai!'
-      : status === 'error' ? 'Gagal'
-      : 'Memproses…');
-  document.getElementById('gen-progress-subtitle').textContent = subtitle;
-}
-
-function startPolling() {
+async function pollUntilDone(pollingJobId) {
   if (pollIv) clearInterval(pollIv);
-  var pollingForJobId = jobId;
   pollIv = setInterval(async function() {
-    if (jobId !== pollingForJobId) { clearInterval(pollIv); pollIv = null; return; }
-    if (cancelRequested) return;
+    if (cancelRequested || jobId !== pollingJobId) { clearInterval(pollIv); pollIv = null; return; }
     try {
-      var res = await fetch(api('/status/' + encodeURIComponent(pollingForJobId)), { signal: AbortSignal.timeout(8000) });
+      var res = await fetch(api('/status/' + encodeURIComponent(pollingJobId)), { signal: AbortSignal.timeout(8000) });
       var data = await res.json();
-      if (jobId !== pollingForJobId) return;
-      if (cancelRequested) return;
-
-      applyBackendData(data);
-
-      if (data.status === 'completed') {
-        stopPolling();
-        setTimeout(showGenDone, 400);
+      if (jobId !== pollingJobId || cancelRequested) return;
+      if (data.status === 'completed' || data.success === true) {
+        clearInterval(pollIv); pollIv = null;
+        stopAnimProgress();
+        finishAnimProgress(showGenDone);
       } else if (data.status === 'error') {
-        stopPolling();
-        showGenError(data.message || data.error || 'Terjadi kesalahan saat memproses laporan');
+        clearInterval(pollIv); pollIv = null;
+        stopAnimProgress();
+        showGenError(data.message || data.error || 'Terjadi kesalahan');
       } else if (data.status === 'cancelled') {
-        stopPolling();
+        clearInterval(pollIv); pollIv = null;
+        stopAnimProgress();
         closeGenModal();
         jobId = null; downloadFileName = null;
         saveSession();
       }
-    } catch (err) {
-      // network error - jangan hentikan polling, coba lagi di interval berikutnya
-    }
+    } catch (_) { /* retry on next tick */ }
   }, 2000);
-}
-
-function stopPolling() {
-  if (pollIv) { clearInterval(pollIv); pollIv = null; }
 }
 
 function showGenDone() {
@@ -2277,7 +2341,8 @@ function showGenError(msg) {
 async function cancelGenerate() {
   if (!jobId) { closeGenModal(); return; }
   cancelRequested = true;
-  stopPolling();
+  stopAnimProgress();
+  if (pollIv) { clearInterval(pollIv); pollIv = null; }
 
   try {
     var res = await fetch(api('/job/' + encodeURIComponent(jobId)), { method: 'DELETE', signal: AbortSignal.timeout(6000) });
@@ -2303,6 +2368,7 @@ function closeGenModal() {
   if (jobId && pollIv) {
     toast('Proses masih berjalan di latar belakang', 'info');
   }
+  stopAnimProgress();
   document.getElementById('gen-modal').classList.remove('active');
 }
 
@@ -2321,6 +2387,196 @@ function downloadReportFile(type) {
     // Mode ASYNC: gunakan job_id seperti biasa
     window.location = api('/download/' + encodeURIComponent(jobId) + '?type=' + type);
   }
+}
+
+// ══════════════════════════════════════════════
+//  SAVE DRAFT
+// ══════════════════════════════════════════════
+function saveDraft() {
+  if (!unitBlocks || unitBlocks.length === 0) {
+    toast('Tidak ada data untuk disimpan', 'warning');
+    return;
+  }
+
+  // Buat nama file dari unit block pertama
+  var ub0 = unitBlocks[0];
+  var towerSlug = (ub0.tower || 'TOWER').replace(/\s+/g, '');
+  var unitSlug = (ub0.unit || 'UNIT').replace(/\s+/g, '');
+  var dateSlug = (ub0.date || new Date().toISOString().slice(0,10)).replace(/-/g, '');
+  var filename = 'OUTSTANDING_' + towerSlug + '_' + unitSlug + '_' + dateSlug + '.json';
+
+  // Kumpulkan semua data termasuk foto (base64)
+  var draftData = {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    unitBlocks: unitBlocks.map(function(ub) {
+      return {
+        tower: ub.tower || '',
+        unit: ub.unit || '',
+        date: ub.date || '',
+        areas: (ub.areas || []).map(function(area) {
+          return {
+            areaName: area.areaName || '',
+            defects: (area.defects || []).map(function(d) {
+              return {
+                id: d.id || '',
+                desc: d.desc || '',
+                foto: d.foto || null,        // base64 dataURL
+                fotoFileId: d.fotoFileId || null,
+                marker: d.marker ? {
+                  x: d.marker.x,
+                  y: d.marker.y,
+                  color: d.marker.color || null,
+                  label: d.marker.label || null
+                } : null,
+                markerColor: d.markerColor || null,
+                catatan: d.catatan || ''
+              };
+            })
+          };
+        })
+      };
+    })
+  };
+
+  try {
+    var json = JSON.stringify(draftData, null, 2);
+    var blob = new Blob([json], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+    toast('Draft disimpan: ' + filename, 'success');
+  } catch (err) {
+    toast('Gagal menyimpan draft: ' + err.message, 'warning');
+  }
+}
+
+// ══════════════════════════════════════════════
+//  LOAD DRAFT
+// ══════════════════════════════════════════════
+function loadDraft(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  input.value = ''; // reset agar bisa pilih file yang sama lagi
+
+  var reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+      if (!data.unitBlocks || !Array.isArray(data.unitBlocks) || data.unitBlocks.length === 0) {
+        toast('File draft tidak valid atau kosong', 'warning');
+        return;
+      }
+
+      // Pastikan unit-list cache tersedia untuk setiap tower
+      for (var i = 0; i < data.unitBlocks.length; i++) {
+        var tower = data.unitBlocks[i].tower;
+        if (tower) await ensureUnitsLoaded(tower);
+      }
+
+      // Restore state
+      unitBlocks = data.unitBlocks.map(function(ub) {
+        return {
+          id: uid(),
+          tower: ub.tower || '',
+          unit: ub.unit || '',
+          date: ub.date || '',
+          areas: (ub.areas || []).map(function(area) {
+            return {
+              id: uid(),
+              areaName: area.areaName || '',
+              defects: (area.defects || []).map(function(d) {
+                return {
+                  id: d.id || uid(),
+                  desc: d.desc || '',
+                  foto: d.foto || null,
+                  fotoFileId: d.fotoFileId || null,
+                  marker: d.marker || null,
+                  markerColor: d.markerColor || null,
+                  catatan: d.catatan || '',
+                  fotoUploading: false
+                };
+              })
+            };
+          })
+        };
+      });
+
+      jobId = null;
+      downloadFileName = null;
+      saveSession();
+      renderAllUnits();
+      toast('Draft berhasil dimuat', 'success');
+      // Scroll ke atas
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      toast('Gagal memuat draft: ' + err.message, 'warning');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ══════════════════════════════════════════════
+//  RESET
+// ══════════════════════════════════════════════
+function confirmReset() {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9600;display:flex;align-items:center;justify-content:center;padding:20px;font-family:inherit;animation:fadeIn 0.2s ease';
+  overlay.innerHTML = [
+    '<div style="background:#fff;border-radius:14px;padding:24px 22px;max-width:360px;width:100%;box-shadow:0 8px 48px rgba(0,0,0,0.25);animation:modalIn 0.22s ease">',
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">',
+        '<div style="width:38px;height:38px;border-radius:50%;background:#fee2e2;display:flex;align-items:center;justify-content:center;flex-shrink:0">',
+          '<i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);font-size:17px"></i>',
+        '</div>',
+        '<div style="font-size:15px;font-weight:800;color:var(--text-dark)">Reset Semua Data?</div>',
+      '</div>',
+      '<div style="font-size:13px;color:var(--text-secondary);margin-bottom:22px;line-height:1.5">',
+        'Semua data laporan akan dihapus, termasuk tower, unit, area, defect, marker, dan foto.<br><br>',
+        '<strong style="color:var(--danger)">Tindakan ini tidak dapat dibatalkan.</strong>',
+      '</div>',
+      '<div style="display:flex;gap:10px">',
+        '<button id="reset-cancel-btn" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid var(--border);background:var(--white);color:var(--text-secondary);font-size:13px;font-weight:600;cursor:pointer;">Batal</button>',
+        '<button id="reset-confirm-btn" style="flex:1;padding:10px;border-radius:8px;border:none;background:var(--danger);color:#fff;font-size:13px;font-weight:700;cursor:pointer;">Ya, Reset</button>',
+      '</div>',
+    '</div>'
+  ].join('');
+
+  document.body.appendChild(overlay);
+
+  document.getElementById('reset-cancel-btn').onclick = function() { overlay.remove(); };
+  document.getElementById('reset-confirm-btn').onclick = function() {
+    overlay.remove();
+    doReset();
+  };
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+}
+
+function doReset() {
+  // Clear state
+  unitBlocks = [];
+  jobId = null;
+  downloadFileName = null;
+  t0 = null;
+  cancelRequested = false;
+  stopAnimProgress();
+  if (pollIv) { clearInterval(pollIv); pollIv = null; }
+
+  // Clear storage
+  try { sessionStorage.clear(); } catch (_) {}
+
+  // Close modal jika terbuka
+  var genModal = document.getElementById('gen-modal');
+  if (genModal) genModal.classList.remove('active');
+
+  // Reset ke kondisi awal
+  addUnitBlock();
+  toast('Semua data berhasil dihapus', 'info');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 </script>
