@@ -101,8 +101,8 @@
   /* ===== FLOORPLAN ===== */
   .floorplan-container { position: relative; width: 100%; max-width: 1050px; margin: 0 auto; border-radius: 8px; overflow: hidden; border: 1.5px solid var(--border); background: #F8FBFF; cursor: default; user-select: none; }
   .floorplan-container.picking { cursor: crosshair; box-shadow: 0 0 0 3px var(--blue-secondary), 0 4px 20px rgba(30,111,185,0.2); }
-  .floorplan-svg, .floorplan-image { width: 100%; display: block; }
-  .markers-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+  .floorplan-svg, .floorplan-image { width: 100%; display: block; transform: scale(1.65); transform-origin: center center; }
+  .markers-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; transform: scale(1.65); transform-origin: center center; }
   .defect-marker { position: absolute; transform: translate(-50%, -50%); min-width: 26px; height: 26px; padding: 0 5px; border-radius: 6px; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.22); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; cursor: pointer; pointer-events: all; transition: transform 0.15s, box-shadow 0.15s; z-index: 10; }
   .defect-marker:hover { transform: translate(-50%,-50%) scale(1.18); box-shadow: 0 4px 16px rgba(0,0,0,0.28); }
 
@@ -742,6 +742,13 @@ function setUnit(ubId, val) {
   var ub = findUb(ubId);
   if (ub) ub.unit = val;
   saveSession();
+  // Reload gambar denah untuk semua area pada unit-block ini,
+  // karena saat unit baru dipilih, gambar sebelumnya (jika ada) masih merujuk ke unit lama / kosong.
+  if (ub) {
+    for (var i = 0; i < ub.areas.length; i++) {
+      initFloorplanImage(ub.id, ub.areas[i]);
+    }
+  }
 }
 
 function setDate(ubId, val) {
