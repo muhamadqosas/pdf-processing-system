@@ -242,9 +242,14 @@
   .fp-pick-container { position: relative; width: 100%; height: 100%; border-radius: 8px; overflow: hidden; border: 2px solid var(--blue-secondary); box-shadow: 0 0 0 4px rgba(30,111,185,0.15); user-select: none; background: #F8FBFF; display: flex; align-items: center; justify-content: center; touch-action: none; }
   .fp-pick-stage { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; cursor: crosshair; will-change: transform; }
   .fp-pick-stage img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
-  .fp-pick-markers { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+  .fp-pick-markers { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
   .fp-defect-marker { position: absolute; transform: translate(-50%, -50%); min-width: 32px; height: 32px; padding: 0 6px; border-radius: 7px; border: 3px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.28); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #fff; z-index: 10; }
   .fp-defect-marker.active-pick { animation: pulse-marker 0.8s ease-in-out infinite alternate; }
+  @media (max-width: 767px) {
+    .fp-defect-marker { transform: translate(-50%, -50%) scale(0.65); min-width: 22px; height: 22px; font-size: 10px; padding: 0 4px; border-width: 2px; }
+    .fp-defect-marker.active-pick { animation: pulse-marker-sm 0.8s ease-in-out infinite alternate; }
+  }
+  @keyframes pulse-marker-sm { from { box-shadow: 0 0 0 0 rgba(30,111,185,0.5), 0 2px 6px rgba(0,0,0,0.28); } to { box-shadow: 0 0 0 6px rgba(30,111,185,0), 0 2px 6px rgba(0,0,0,0.28); } }
   @keyframes pulse-marker { from { box-shadow: 0 0 0 0 rgba(30,111,185,0.5), 0 2px 10px rgba(0,0,0,0.28); } to { box-shadow: 0 0 0 10px rgba(30,111,185,0), 0 2px 10px rgba(0,0,0,0.28); } }
 
   /* Mobile: fullscreen */
@@ -457,8 +462,9 @@
       <div class="fp-pick-container" id="fp-pick-container">
         <div class="fp-pick-stage" id="fp-pick-stage">
           <img id="fp-pick-img" src="" alt="Denah Unit" crossorigin="anonymous">
-          <div class="fp-pick-markers" id="fp-pick-markers"></div>
         </div>
+        <!-- Markers layer di luar stage agar tidak ikut zoom/pan transform -->
+        <div class="fp-pick-markers" id="fp-pick-markers"></div>
       </div>
     </div>
     <div class="fp-modal-hint" style="text-align:center;padding:6px 14px 10px;color:var(--text-secondary);font-size:12px;">
@@ -1738,11 +1744,17 @@ function startPick(ubId, areaId, defectId) {
     var color = MARKER_COLORS[i % MARKER_COLORS.length];
     var circle = MARKER_CIRCLES[i] || (i + 1);
     var isActive = (d.id === defectId) ? ' active-pick' : '';
-    markersHtml += '<div class="fp-defect-marker' + isActive + '" data-mx="' + d.marker.x + '" data-my="' + d.marker.y + '" style="left:' + d.marker.x + '%;top:' + d.marker.y + '%;background:' + color + ';" title="' + escHtml(d.desc || 'Defect #' + (i+1)) + '">' + circle + '</div>';
+    // Posisi left/top akan dihitung ulang oleh repositionFpMarkers() berdasarkan zoom/pan state
+    markersHtml += '<div class="fp-defect-marker' + isActive + '" data-mx="' + d.marker.x + '" data-my="' + d.marker.y + '" style="background:' + color + ';" title="' + escHtml(d.desc || 'Defect #' + (i+1)) + '">' + circle + '</div>';
   }
   document.getElementById('fp-pick-markers').innerHTML = markersHtml;
-  // Defer repositioning until image is loaded and layout is ready
-  setTimeout(repositionFpMarkers, 50);
+
+  // Reposisi setelah gambar selesai dimuat (naturalWidth tersedia) dan layout siap
+  var pickImg = document.getElementById('fp-pick-img');
+  var _doRepos = function() { setTimeout(repositionFpMarkers, 30); };
+  pickImg.addEventListener('load', _doRepos, { once: true });
+  // Fallback kalau gambar sudah cached (load tidak akan fire)
+  if (pickImg.complete && pickImg.naturalWidth) setTimeout(repositionFpMarkers, 50);
 
   resetFpZoom();
   document.getElementById('fp-pick-modal').classList.add('active');
@@ -1759,7 +1771,8 @@ function startPick(ubId, areaId, defectId) {
   }
 }
 
-// Reposisi marker di popup agar sesuai dengan area render gambar (object-fit:contain letterbox)
+// Reposisi marker di popup agar sesuai dengan area render gambar + zoom/pan transform
+// Marker berada di layer terpisah (tidak ikut transform stage), sehingga ukurannya selalu tetap.
 function repositionFpMarkers() {
   var img = document.getElementById('fp-pick-img');
   var markersEl = document.getElementById('fp-pick-markers');
@@ -1772,12 +1785,17 @@ function repositionFpMarkers() {
   var natW = img.naturalWidth || stageW;
   var natH = img.naturalHeight || stageH;
 
-  // Hitung area render aktual gambar dalam stage (object-fit:contain)
+  // Hitung area render aktual gambar dalam stage (object-fit:contain) pada scale=1
   var imgScale = Math.min(stageW / natW, stageH / natH);
   var rendW = natW * imgScale;
   var rendH = natH * imgScale;
   var imgOffsetX = (stageW - rendW) / 2;
   var imgOffsetY = (stageH - rendH) / 2;
+
+  // Ambil state zoom/pan saat ini
+  var sc = fpzState.scale;
+  var tx = fpzState.x;
+  var ty = fpzState.y;
 
   var markers = markersEl.querySelectorAll('.fp-defect-marker');
   for (var i = 0; i < markers.length; i++) {
@@ -1785,11 +1803,15 @@ function repositionFpMarkers() {
     var mx = parseFloat(m.getAttribute('data-mx'));
     var my = parseFloat(m.getAttribute('data-my'));
     if (isNaN(mx) || isNaN(my)) continue;
-    // Ubah dari persentase gambar → pixel dalam stage (sebelum zoom transform)
-    var px = imgOffsetX + (mx / 100) * rendW;
-    var py = imgOffsetY + (my / 100) * rendH;
-    m.style.left = px + 'px';
-    m.style.top = py + 'px';
+    // Posisi dalam ruang stage (sebelum transform): pixel dari pojok kiri atas stage
+    var pxStage = imgOffsetX + (mx / 100) * rendW;
+    var pyStage = imgOffsetY + (my / 100) * rendH;
+    // Terapkan transform stage (translate + scale, origin 0 0) → posisi dalam container
+    var pxContainer = tx + pxStage * sc;
+    var pyContainer = ty + pyStage * sc;
+    // Set posisi marker (left/top dalam container) — ukuran marker TIDAK berubah
+    m.style.left = pxContainer + 'px';
+    m.style.top  = pyContainer + 'px';
   }
 }
 
@@ -1907,6 +1929,8 @@ function applyFpZoom() {
   stage.style.transformOrigin = '0 0';
   stage.style.transform = 'translate(' + fpzState.x + 'px,' + fpzState.y + 'px) scale(' + fpzState.scale + ')';
   stage.style.transition = fpzState.dragging ? 'none' : 'transform 0.12s ease';
+  // Reposisi marker layer (di luar stage) agar ukuran marker tetap saat zoom/pan
+  repositionFpMarkers();
 }
 
 function fpzDist(t0, t1) {
