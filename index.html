@@ -85,9 +85,7 @@
   .date-display-text { width: 100%; border: 1.5px solid var(--border); border-radius: 7px; padding: 9px 12px; font-size: 14px; color: var(--text-dark); background: var(--white); cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; transition: border-color 0.2s, box-shadow 0.2s; }
   .date-display-text i { color: var(--text-secondary); font-size: 14px; flex-shrink: 0; }
   .date-display-wrap:focus-within .date-display-text { border-color: var(--blue-secondary); box-shadow: 0 0 0 3px rgba(30,111,185,0.12); }
-  .date-edit-badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--blue-light); border: 1px solid var(--blue-secondary); color: var(--blue-secondary); font-size: 11px; cursor: pointer; transition: background 0.15s, color 0.15s; flex-shrink: 0; user-select: none; pointer-events: none; }
   .date-display-text:hover { border-color: var(--blue-secondary); box-shadow: 0 0 0 3px rgba(30,111,185,0.12); }
-  .date-edit-badge i { font-size: 10px; }
   .form-group select:focus { border-color: var(--blue-secondary); box-shadow: 0 0 0 3px rgba(30,111,185,0.12); }
 
   /* ===== AREA BLOCK ===== */
@@ -501,6 +499,7 @@ var MARKER_CIRCLES = [];
 var unitBlocks = [];
 var pickingInfo = null;
 var jobId = null;
+var downloadFileName = null;
 var t0 = null;
 var pollIv = null;
 var cancelRequested = false;
@@ -661,11 +660,11 @@ async function init() {
           openGenModal(true);
           showGenDone();
         } else {
-          jobId = null;
+          jobId = null; downloadFileName = null;
           saveSession();
         }
       } catch (_) {
-        jobId = null;
+        jobId = null; downloadFileName = null;
         saveSession();
       }
     }
@@ -842,7 +841,6 @@ function renderAllUnits() {
               '<div class="date-display-text" onclick="document.getElementById(\'date-input-' + ub.id + '\').showPicker ? document.getElementById(\'date-input-' + ub.id + '\').showPicker() : document.getElementById(\'date-input-' + ub.id + '\').click()">' +
                 '<span id="date-text-' + ub.id + '">' + (ub.date ? formatTanggal(ub.date) : 'Pilih tanggal...') + '</span>' +
                 '<span style="display:flex;align-items:center;gap:6px;margin-left:auto;">' +
-                  '<span class="date-edit-badge"><i class="bi bi-pencil-fill"></i></span>' +
                   '<i class="bi bi-calendar3" style="color:var(--text-secondary);font-size:14px;"></i>' +
                 '</span>' +
               '</div>' +
@@ -2171,10 +2169,22 @@ async function openGenModal(recovering) {
     if (data.success === false) throw new Error(data.message || 'Gagal memulai proses laporan');
 
     jobId = data.job_id || data.jobId || data.id || data.task_id;
-    if (!jobId) throw new Error('Server tidak mengembalikan job_id');
-    saveSession();
-    applyBackendData({ status: data.status || 'waiting', progress: 0, stage: null });
-    startPolling();
+    downloadFileName = data.filename || data.file_name || data.file || data.pdf_file || data.path || null;
+
+    if (jobId) {
+      // Mode ASYNC: backend mengembalikan job_id, lanjut polling status
+      saveSession();
+      applyBackendData({ status: data.status || 'waiting', progress: 0, stage: null });
+      startPolling();
+    } else if (data.status === 'completed' || data.success === true || downloadFileName) {
+      // Mode SYNC: backend langsung selesai membuat PDF dalam 1 request
+      jobId = downloadFileName || ('sync-' + Date.now());
+      saveSession();
+      applyBackendData({ status: 'completed', progress: 100, stage: 'Selesai!' });
+      showGenDone();
+    } else {
+      throw new Error('Server tidak mengembalikan job_id maupun status selesai');
+    }
   } catch (err) {
     showGenError(err.message || 'Tidak dapat terhubung ke server');
   }
@@ -2223,7 +2233,7 @@ function startPolling() {
       } else if (data.status === 'cancelled') {
         stopPolling();
         closeGenModal();
-        jobId = null;
+        jobId = null; downloadFileName = null;
         saveSession();
       }
     } catch (err) {
@@ -2264,14 +2274,14 @@ async function cancelGenerate() {
   } catch (_) {}
 
   toast('Proses dibatalkan', 'info');
-  jobId = null;
+  jobId = null; downloadFileName = null;
   cancelRequested = false;
   saveSession();
   closeGenModal();
 }
 
 function retryGenerate() {
-  jobId = null;
+  jobId = null; downloadFileName = null;
   saveSession();
   openGenModal(false);
 }
@@ -2291,7 +2301,13 @@ function downloadReportFile(type) {
     toast('Tidak ada laporan untuk diunduh', 'warning');
     return;
   }
-  window.location = api('/download/' + encodeURIComponent(jobId) + '?type=' + type);
+  if (downloadFileName) {
+    // Mode SYNC: backend memberi nama/path file langsung
+    window.location = api('/download/' + encodeURIComponent(downloadFileName) + '?type=' + type);
+  } else {
+    // Mode ASYNC: gunakan job_id seperti biasa
+    window.location = api('/download/' + encodeURIComponent(jobId) + '?type=' + type);
+  }
 }
 
 </script>
