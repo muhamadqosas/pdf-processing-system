@@ -517,7 +517,7 @@
 <!-- BATCH SOURCE PICKER (mobile: kamera loop vs galeri multiple) -->
 <div id="batch-source-overlay">
   <div class="foto-source-sheet">
-    <div class="foto-source-title">Import Foto Batch</div>
+    <div class="foto-source-title">Tambah Banyak Foto</div>
     <div class="foto-source-btns">
       <button class="foto-source-btn" onclick="batchSourcePick('camera')">
         <i class="bi bi-camera-fill"></i> Kamera
@@ -1048,7 +1048,7 @@ function renderAreaHTML(ub, area) {
           '<i class="bi bi-plus-circle-fill"></i> Tambah Defect' +
         '</button>' +
         '<label class="btn-batch-import" title="Upload banyak foto sekaligus — tiap foto otomatis membuat satu defect baru" onclick="batchImportFoto(\'' + ub.id + '\',\'' + area.id + '\')">' +
-          '<i class="bi bi-images"></i> Batch Import Foto' +
+          '<i class="bi bi-images"></i> Tambah Banyak Foto' +
         '</label>' +
       '</div>' +
     '</div>' +
@@ -1375,7 +1375,7 @@ function addDefect(ubId, areaId) {
 }
 
 // ══════════════════════════════════════════════
-//  BATCH IMPORT FOTO
+//  Tambah Banyak Foto
 // ══════════════════════════════════════════════
 var _batchPickerContext = null; // { ubId, areaId }
 
