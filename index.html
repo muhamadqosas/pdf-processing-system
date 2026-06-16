@@ -1468,6 +1468,53 @@ function readFileAsDataURL(file) {
   });
 }
 
+// ── Kompresi gambar sebelum disimpan/dikirim ──
+// maxW/maxH  : ukuran sisi terpanjang maksimum (px)
+// quality    : kualitas JPEG (0.0 – 1.0)
+// Mengembalikan: { dataUrl, blob, width, height }
+function compressImage(file, maxW, maxH, quality) {
+  maxW = maxW || 1280;
+  maxH = maxH || 1280;
+  quality = (quality !== undefined) ? quality : 0.75;
+
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onerror = function() { reject(new Error('Gagal membaca file')); };
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onerror = function() { reject(new Error('Gagal memuat gambar')); };
+      img.onload = function() {
+        var origW = img.naturalWidth;
+        var origH = img.naturalHeight;
+
+        // Hitung ukuran baru dengan menjaga aspect ratio
+        var scale = Math.min(1, maxW / origW, maxH / origH);
+        var newW = Math.round(origW * scale);
+        var newH = Math.round(origH * scale);
+
+        var canvas = document.createElement('canvas');
+        canvas.width  = newW;
+        canvas.height = newH;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, newW, newH);
+
+        var dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+        // Konversi dataUrl → Blob agar bisa dikirim via FormData
+        var byteStr = atob(dataUrl.split(',')[1]);
+        var ab = new ArrayBuffer(byteStr.length);
+        var ia = new Uint8Array(ab);
+        for (var i = 0; i < byteStr.length; i++) ia[i] = byteStr.charCodeAt(i);
+        var blob = new Blob([ab], { type: 'image/jpeg' });
+
+        resolve({ dataUrl: dataUrl, blob: blob, width: newW, height: newH });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 // Update hanya sel foto pada DOM tanpa full re-render (mencegah glitch & scroll ke atas)
 function patchFotoCell(ubId, areaId, d, areaForRender) {
   var area = areaForRender;
@@ -1536,14 +1583,17 @@ async function changeFoto(ubId, areaId, defectId, input) {
   var d = findDefect(area, defectId);
   if (!d) return;
 
-  // Baca dulu sebagai base64 agar bisa langsung tampil
-  var dataUrl;
+  // ── Kompresi gambar sebelum disimpan & dikirim ──
+  // Maksimum 1280px sisi terpanjang, kualitas JPEG 75%
+  var compressed;
   try {
-    dataUrl = await readFileAsDataURL(file);
+    compressed = await compressImage(file, 1280, 1280, 0.75);
   } catch (e) {
-    toast('Gagal membaca file gambar', 'warning');
+    toast('Gagal mengompresi gambar', 'warning');
     return;
   }
+  var dataUrl    = compressed.dataUrl;  // base64 hasil kompresi
+  var compBlob   = compressed.blob;     // Blob untuk FormData upload
 
   // Tampilkan preview lokal segera — TANPA re-render seluruh halaman
   // fotoOffline = false karena backend sudah mendukung Base64 Data URL langsung
@@ -1551,14 +1601,16 @@ async function changeFoto(ubId, areaId, defectId, input) {
   d.foto = dataUrl;
   d.fotoOffline = false;
   d.fotoFileId = null;
-  _pendingFotoFiles[defectId] = file;
+  // Simpan blob terkompresi sebagai "file pending" (dipakai saat generate-report offline)
+  _pendingFotoFiles[defectId] = compBlob;
   patchFotoCell(ubId, areaId, d, area);
   saveSession();
 
   // Coba upload ke backend untuk mendapatkan URL permanen (opsional)
   try {
     var form = new FormData();
-    form.append('file', file);
+    // Kirim blob terkompresi (bukan file asli) agar payload lebih ringan
+    form.append('file', compBlob, (file.name || 'photo').replace(/\.[^.]+$/, '') + '.jpg');
     form.append('defect_id', defectId);
     var res = await fetch(api('/api/upload-photo'), { method: 'POST', body: form, signal: AbortSignal.timeout(30000) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1573,7 +1625,7 @@ async function changeFoto(ubId, areaId, defectId, input) {
     patchFotoCell(ubId, areaId, d, area);
     saveSession();
   } catch (err) {
-    // Upload ke server gagal — foto Base64 tetap valid untuk dikirim ke /generate-report
+    // Upload ke server gagal — foto Base64 terkompresi tetap valid untuk /generate-report
     d.fotoOffline = false;
     d.fotoUploading = false;
     saveSession();
