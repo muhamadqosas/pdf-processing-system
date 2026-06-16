@@ -110,6 +110,11 @@
   .markers-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; transform: scale(1.25); transform-origin: center center; }
   .defect-marker { position: absolute; transform: translate(-50%, -50%); min-width: 26px; height: 26px; padding: 0 5px; border-radius: 6px; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.22); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; cursor: pointer; pointer-events: all; transition: transform 0.15s, box-shadow 0.15s; z-index: 10; }
   .defect-marker:hover { transform: translate(-50%,-50%) scale(1.18); box-shadow: 0 4px 16px rgba(0,0,0,0.28); }
+  /* Counter-scale marker di mobile agar tetap kecil meski layer di-scale 1.25 */
+  @media (max-width: 767px) {
+    .defect-marker { transform: translate(-50%, -50%) scale(0.72); min-width: 22px; height: 22px; font-size: 10px; padding: 0 4px; border-width: 1.5px; }
+    .defect-marker:hover { transform: translate(-50%,-50%) scale(0.85); }
+  }
 
   /* ===== TABLE — DESKTOP ===== */
   .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -128,7 +133,7 @@
 
   /* ===== FOTO ===== */
   .foto-cell-empty { display: flex; align-items: center; gap: 8px; }
-  .foto-add-label { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 6px; border: 1.5px dashed var(--border); background: var(--white); color: var(--text-secondary); font-size: 11.5px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .foto-add-label { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 6px; border: 1.5px dashed var(--border); background: var(--white); color: var(--text-secondary); font-size: 11.5px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; user-select: none; -webkit-user-select: none; }
   .foto-add-label:hover { border-color: var(--blue-secondary); color: var(--blue-secondary); background: var(--blue-light); }
   .foto-cell-filled { display: flex; align-items: flex-start; gap: 0; position: relative; }
   .foto-thumb-wrap { position: relative; display: inline-block; width: 72px; height: 72px; border-radius: 6px; border: 1.5px solid var(--border); }
@@ -136,9 +141,25 @@
   .foto-thumb-wrap:hover .foto-thumb { transform: scale(1.08); box-shadow: 0 2px 10px rgba(0,0,0,0.15); }
   .foto-btn-x { position: absolute; top: -7px; right: -7px; width: 18px; height: 18px; border-radius: 50%; background: var(--danger); border: 1.5px solid #fff; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 5; line-height: 1; }
   .foto-btn-x:hover { background: #b91c1c; }
-  .foto-btn-change { position: absolute; top: -7px; left: -7px; width: 18px; height: 18px; border-radius: 50%; background: var(--blue-secondary); border: 1.5px solid #fff; color: #fff; font-size: 9px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 5; line-height: 1; }
+  .foto-btn-change { position: absolute; top: -7px; left: -7px; width: 18px; height: 18px; border-radius: 50%; background: var(--blue-secondary); border: 1.5px solid #fff; color: #fff; font-size: 9px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 5; line-height: 1; user-select: none; -webkit-user-select: none; }
   .foto-btn-change:hover { background: var(--blue-primary); }
   input[type=file] { display: none; }
+
+  /* ===== FOTO SOURCE PICKER POPUP (mobile) ===== */
+  #foto-source-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9800; align-items: flex-end; justify-content: center; animation: fadeIn 0.18s ease; }
+  #foto-source-overlay.active { display: flex; }
+  .foto-source-sheet { background: var(--white); border-radius: 16px 16px 0 0; padding: 16px 16px 32px; width: 100%; max-width: 480px; animation: sheetIn 0.22s ease; }
+  @keyframes sheetIn { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .foto-source-title { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-align: center; margin-bottom: 14px; letter-spacing: 0.3px; text-transform: uppercase; }
+  .foto-source-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .foto-source-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 12px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--white); color: var(--text-dark); font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .foto-source-btn i { font-size: 28px; color: var(--blue-secondary); }
+  .foto-source-btn:hover, .foto-source-btn:active { border-color: var(--blue-secondary); background: var(--blue-light); }
+  .foto-source-cancel { margin-top: 10px; width: 100%; padding: 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--white); color: var(--text-secondary); font-size: 14px; font-weight: 600; cursor: pointer; }
+  .foto-source-cancel:active { background: #f5f5f5; }
+
+  /* ===== DRAG & DROP ===== */
+  .foto-add-label.drag-over { border-color: var(--blue-secondary) !important; background: var(--blue-light) !important; color: var(--blue-secondary) !important; }
 
   .foto-thumb-wrap.is-offline { border-color: var(--border); }
 
@@ -443,6 +464,22 @@
     <div class="fp-modal-hint" style="text-align:center;padding:6px 14px 10px;color:var(--text-secondary);font-size:12px;">
       <i class="bi bi-zoom-in"></i> Cubit (pinch) atau scroll untuk zoom denah, geser untuk pan
     </div>
+  </div>
+</div>
+
+<!-- FOTO SOURCE PICKER (mobile: kamera vs file) -->
+<div id="foto-source-overlay">
+  <div class="foto-source-sheet">
+    <div class="foto-source-title">Pilih Sumber Foto</div>
+    <div class="foto-source-btns">
+      <button class="foto-source-btn" onclick="fotoSourcePick('camera')">
+        <i class="bi bi-camera-fill"></i> Kamera
+      </button>
+      <button class="foto-source-btn" onclick="fotoSourcePick('file')">
+        <i class="bi bi-folder2-open"></i> File / Galeri
+      </button>
+    </div>
+    <button class="foto-source-cancel" onclick="closeFotoSourcePicker()">Batal</button>
   </div>
 </div>
 
@@ -901,6 +938,25 @@ function renderAllUnits() {
       })(ub2.id, ub2.areas[ai2].id, ub2.areas[ai2]);
     }
   }
+
+  // Pasang drag-drop untuk semua label foto (desktop)
+  if (!isMobileDevice()) {
+    for (var ui3 = 0; ui3 < unitBlocks.length; ui3++) {
+      var ub3 = unitBlocks[ui3];
+      for (var ai3 = 0; ai3 < ub3.areas.length; ai3++) {
+        var area3 = ub3.areas[ai3];
+        for (var di3 = 0; di3 < area3.defects.length; di3++) {
+          var d3 = area3.defects[di3];
+          if (!d3.foto) {
+            (function(ubId3, areaId3, defectId3) {
+              var lbl = document.getElementById('fotolabel-' + defectId3) || document.getElementById('fotolabel-dc-' + defectId3);
+              attachFotoDragDrop(lbl, ubId3, areaId3, defectId3);
+            })(ub3.id, area3.id, d3.id);
+          }
+        }
+      }
+    }
+  }
 }
 
 function renderAreaHTML(ub, area) {
@@ -957,18 +1013,15 @@ function renderDefectRow(ubId, area, d, i) {
     fotoCell = '<div class="foto-cell-filled">' +
       '<div class="foto-thumb-wrap">' +
         '<img class="foto-thumb" src="' + d.foto + '" onclick="openPhotoModal(\'' + d.id + '\')" title="Klik untuk zoom">' +
-        '<label class="foto-btn-change" title="Ganti foto"><i class="bi bi-arrow-repeat"></i>' +
-          '<input type="file" accept="image/*" onchange="changeFoto(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\',this)">' +
-        '</label>' +
+        '<label class="foto-btn-change" title="Ganti foto" onclick="openFotoSourcePicker(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\')"><i class="bi bi-arrow-repeat"></i></label>' +
         '<button class="foto-btn-x" onclick="removeFoto(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\')" title="Hapus foto"><i class="bi bi-x"></i></button>' +
       '</div></div>';
   } else if (d.fotoUploading) {
     fotoCell = '<div class="foto-cell-empty"><span class="foto-add-label"><i class="bi bi-arrow-repeat" style="animation:spin 1s linear infinite;"></i> Mengunggah...</span></div>';
   } else {
     fotoCell = '<div class="foto-cell-empty">' +
-      '<label class="foto-add-label"><i class="bi bi-image"></i> Pilih Foto' +
-        '<input type="file" accept="image/*" onchange="changeFoto(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\',this)">' +
-      '</label></div>';
+      '<label class="foto-add-label" id="fotolabel-' + d.id + '" onclick="openFotoSourcePicker(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\')" title="Klik atau seret foto ke sini"><i class="bi bi-image"></i> Pilih Foto</label>' +
+      '</div>';
   }
 
   var markerBtn;
@@ -1002,17 +1055,13 @@ function renderDefectCard(ubId, area, d, i) {
     fotoCell = '<div class="foto-cell-filled">' +
       '<div class="foto-thumb-wrap">' +
         '<img class="foto-thumb" src="' + d.foto + '" onclick="openPhotoModal(\'' + d.id + '\')" title="Klik untuk zoom">' +
-        '<label class="foto-btn-change" title="Ganti foto"><i class="bi bi-arrow-repeat"></i>' +
-          '<input type="file" accept="image/*" onchange="changeFoto(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\',this)">' +
-        '</label>' +
+        '<label class="foto-btn-change" title="Ganti foto" onclick="openFotoSourcePicker(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\')"><i class="bi bi-arrow-repeat"></i></label>' +
         '<button class="foto-btn-x" onclick="removeFoto(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\')" title="Hapus foto"><i class="bi bi-x"></i></button>' +
       '</div></div>';
   } else if (d.fotoUploading) {
     fotoCell = '<span class="foto-add-label"><i class="bi bi-arrow-repeat" style="animation:spin 1s linear infinite;"></i> Mengunggah...</span>';
   } else {
-    fotoCell = '<label class="foto-add-label"><i class="bi bi-image"></i> Pilih Foto' +
-      '<input type="file" accept="image/*" onchange="changeFoto(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\',this)">' +
-      '</label>';
+    fotoCell = '<label class="foto-add-label" id="fotolabel-dc-' + d.id + '" onclick="openFotoSourcePicker(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\')" title="Klik atau seret foto ke sini"><i class="bi bi-image"></i> Pilih Foto</label>';
   }
 
   var markerBtn;
@@ -1209,6 +1258,19 @@ function patchAreaDefects(ub, area) {
   // Update marker overlay di floorplan
   var markersLayer = document.getElementById('ml-' + area.id);
   if (markersLayer) markersLayer.innerHTML = buildMarkersHTML(ub.id, area);
+
+  // Pasang drag-drop ke semua label foto di area ini (desktop)
+  if (!isMobileDevice()) {
+    for (var di = 0; di < area.defects.length; di++) {
+      var dfc = area.defects[di];
+      if (!dfc.foto) {
+        (function(ubId2, areaId2, defectId2) {
+          var lbl = document.getElementById('fotolabel-' + defectId2) || document.getElementById('fotolabel-dc-' + defectId2);
+          attachFotoDragDrop(lbl, ubId2, areaId2, defectId2);
+        })(ub.id, area.id, dfc.id);
+      }
+    }
+  }
 }
 
 // Re-render hanya options dropdown Unit satu UB
@@ -1338,18 +1400,15 @@ function patchFotoCell(ubId, areaId, d, areaForRender) {
     fotoHtml = '<div class="foto-cell-filled">' +
       '<div class="foto-thumb-wrap">' +
         '<img class="foto-thumb" src="' + d.foto + '" onclick="openPhotoModal(\'' + d.id + '\')" title="Klik untuk zoom">' +
-        '<label class="foto-btn-change" title="Ganti foto"><i class="bi bi-arrow-repeat"></i>' +
-          '<input type="file" accept="image/*" onchange="changeFoto(\'' + ubId + '\',\'' + areaId + '\',\'' + d.id + '\',this)">' +
-        '</label>' +
+        '<label class="foto-btn-change" title="Ganti foto" onclick="openFotoSourcePicker(\'' + ubId + '\',\'' + areaId + '\',\'' + d.id + '\')"><i class="bi bi-arrow-repeat"></i></label>' +
         '<button class="foto-btn-x" onclick="removeFoto(\'' + ubId + '\',\'' + areaId + '\',\'' + d.id + '\')" title="Hapus foto"><i class="bi bi-x"></i></button>' +
       '</div></div>';
   } else if (d.fotoUploading) {
     fotoHtml = '<div class="foto-cell-empty"><span class="foto-add-label"><i class="bi bi-arrow-repeat" style="animation:spin 1s linear infinite;"></i> Mengunggah...</span></div>';
   } else {
     fotoHtml = '<div class="foto-cell-empty">' +
-      '<label class="foto-add-label"><i class="bi bi-image"></i> Pilih Foto' +
-        '<input type="file" accept="image/*" onchange="changeFoto(\'' + ubId + '\',\'' + areaId + '\',\'' + d.id + '\',this)">' +
-      '</label></div>';
+      '<label class="foto-add-label" id="fotolabel-' + d.id + '" onclick="openFotoSourcePicker(\'' + ubId + '\',\'' + areaId + '\',\'' + d.id + '\')" title="Klik atau seret foto ke sini"><i class="bi bi-image"></i> Pilih Foto</label>' +
+      '</div>';
   }
 
   // Update table row (desktop)
@@ -1437,6 +1496,66 @@ async function changeFoto(ubId, areaId, defectId, input) {
     saveSession();
   }
 }
+
+// ══════════════════════════════════════════════
+//  FOTO SOURCE PICKER (mobile = popup, desktop = langsung file)
+// ══════════════════════════════════════════════
+var _fotoPickerContext = null; // { ubId, areaId, defectId }
+
+function isMobileDevice() {
+  return /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth < 768;
+}
+
+function openFotoSourcePicker(ubId, areaId, defectId) {
+  _fotoPickerContext = { ubId: ubId, areaId: areaId, defectId: defectId };
+  if (isMobileDevice()) {
+    // Mobile: tampilkan popup pilih sumber
+    document.getElementById('foto-source-overlay').classList.add('active');
+  } else {
+    // Desktop: langsung buka file manager
+    fotoSourcePick('file');
+  }
+}
+
+function fotoSourcePick(source) {
+  closeFotoSourcePicker();
+  if (!_fotoPickerContext) return;
+  var ctx = _fotoPickerContext;
+  // Buat input file sementara
+  var inp = document.createElement('input');
+  inp.type = 'file';
+  inp.accept = 'image/*';
+  if (source === 'camera') inp.capture = 'environment';
+  inp.onchange = function() { changeFoto(ctx.ubId, ctx.areaId, ctx.defectId, inp); };
+  inp.click();
+}
+
+function closeFotoSourcePicker() {
+  document.getElementById('foto-source-overlay').classList.remove('active');
+}
+
+// Tutup picker saat klik backdrop
+document.addEventListener('DOMContentLoaded', function() {
+  var overlay = document.getElementById('foto-source-overlay');
+  if (overlay) overlay.addEventListener('click', function(e) { if (e.target === overlay) closeFotoSourcePicker(); });
+});
+
+// ── Drag & Drop ke label foto (desktop) ──
+function attachFotoDragDrop(labelEl, ubId, areaId, defectId) {
+  if (!labelEl) return;
+  labelEl.addEventListener('dragover', function(e) { e.preventDefault(); labelEl.classList.add('drag-over'); });
+  labelEl.addEventListener('dragleave', function() { labelEl.classList.remove('drag-over'); });
+  labelEl.addEventListener('drop', function(e) {
+    e.preventDefault();
+    labelEl.classList.remove('drag-over');
+    var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      var fakeInput = { files: [file] };
+      changeFoto(ubId, areaId, defectId, fakeInput);
+    }
+  });
+}
+
 
 function removeFoto(ubId, areaId, defectId) {
   var ub = findUb(ubId);
