@@ -454,9 +454,9 @@
     <div class="fp-modal-header">
       <div>
         <div class="fp-modal-title"><i class="bi bi-crosshair"></i> Pilih Lokasi Defect</div>
-        <div class="fp-modal-hint">Ketuk pada denah untuk menempatkan marker — popup akan otomatis tertutup</div>
+        <div class="fp-modal-hint">Ketuk pada denah untuk menempatkan/memindah marker — bisa diulang berkali-kali, lalu tekan ✕ untuk simpan &amp; tutup</div>
       </div>
-      <button class="fp-modal-close" onclick="cancelPickModal()" title="Batal"><i class="bi bi-x"></i></button>
+      <button class="fp-modal-close" onclick="cancelPickModal()" title="Simpan &amp; Tutup"><i class="bi bi-check2"></i></button>
     </div>
     <div class="fp-modal-body">
       <div class="fp-pick-container" id="fp-pick-container">
@@ -1718,6 +1718,10 @@ function initPhotoZoomHandlers() {
 function startPick(ubId, areaId, defectId) {
   pickingInfo = { ubId: ubId, areaId: areaId, defectId: defectId };
 
+  // Cache ukuran stage/gambar sebelumnya (jika ada) sudah tidak valid untuk sesi pick baru ini —
+  // tanpa invalidate, posisi marker bisa salah saat ganti defect/area/unit dengan denah berbeda.
+  invalidateFpCache();
+
   var ub = findUb(ubId);
   var area = findArea(ub, areaId);
 
@@ -1745,13 +1749,13 @@ function startPick(ubId, areaId, defectId) {
     var circle = MARKER_CIRCLES[i] || (i + 1);
     var isActive = (d.id === defectId) ? ' active-pick' : '';
     // Posisi left/top akan dihitung ulang oleh repositionFpMarkers() berdasarkan zoom/pan state
-    markersHtml += '<div class="fp-defect-marker' + isActive + '" data-mx="' + d.marker.x + '" data-my="' + d.marker.y + '" style="background:' + color + ';" title="' + escHtml(d.desc || 'Defect #' + (i+1)) + '">' + circle + '</div>';
+    markersHtml += '<div class="fp-defect-marker' + isActive + '" data-defect-id="' + d.id + '" data-mx="' + d.marker.x + '" data-my="' + d.marker.y + '" style="background:' + color + ';" title="' + escHtml(d.desc || 'Defect #' + (i+1)) + '">' + circle + '</div>';
   }
   document.getElementById('fp-pick-markers').innerHTML = markersHtml;
 
   // Reposisi setelah gambar selesai dimuat (naturalWidth tersedia) dan layout siap
   var pickImg = document.getElementById('fp-pick-img');
-  var _doRepos = function() { setTimeout(repositionFpMarkers, 30); };
+  var _doRepos = function() { invalidateFpCache(); setTimeout(repositionFpMarkers, 30); };
   pickImg.addEventListener('load', _doRepos, { once: true });
   // Fallback kalau gambar sudah cached (load tidak akan fire)
   if (pickImg.complete && pickImg.naturalWidth) setTimeout(repositionFpMarkers, 50);
@@ -1764,6 +1768,7 @@ function startPick(ubId, areaId, defectId) {
   if (!window._fpResizeListener) {
     window._fpResizeListener = function() {
       if (document.getElementById('fp-pick-modal').classList.contains('active')) {
+        invalidateFpCache();
         repositionFpMarkers();
       }
     };
@@ -1772,9 +1777,16 @@ function startPick(ubId, areaId, defectId) {
 }
 
 function cancelPickModal() {
+  var hadMarker = !!(pickingInfo && (function() {
+    var ub = findUb(pickingInfo.ubId);
+    var area = ub ? findArea(ub, pickingInfo.areaId) : null;
+    var d = area ? findDefect(area, pickingInfo.defectId) : null;
+    return d && d.marker;
+  })());
   pickingInfo = null;
   document.getElementById('fp-pick-modal').classList.remove('active');
   unlockPageZoom();
+  if (hadMarker) toast('Marker berhasil disimpan', 'success');
 }
 
 function onFloorplanClick(e, ubId, areaId) {
@@ -1833,17 +1845,40 @@ function placeMarkerAt(clientX, clientY) {
   var d = findDefect(area, pickingInfo.defectId);
   if (!d) return;
 
-  d.marker = { x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) };
+  var mx = parseFloat(x.toFixed(2));
+  var my = parseFloat(y.toFixed(2));
+  d.marker = { x: mx, y: my };
 
-  document.getElementById('fp-pick-modal').classList.remove('active');
-  var savedUb = findUb(pickingInfo.ubId);
-  var savedArea = savedUb ? findArea(savedUb, pickingInfo.areaId) : null;
-  pickingInfo = null;
-  unlockPageZoom();
+  // Update titik marker yang sedang aktif di dalam popup (tanpa menutup popup),
+  // supaya preview pop-up langsung sinkron dengan titik yang baru saja diklik.
+  upsertPickMarkerDom(area, d, mx, my);
 
-  if (savedUb && savedArea) patchAreaDefects(savedUb, savedArea);
+  // Sinkronkan juga preview di halaman utama secara live, popup TETAP terbuka
+  // agar pengguna bisa repick berkali-kali sebelum menutup secara manual.
+  patchAreaDefects(ub, area);
   saveSession();
-  toast('Marker berhasil dipilih', 'success');
+}
+
+// Buat/perbarui elemen titik marker aktif di dalam popup pick, lalu reposisikan semua marker.
+function upsertPickMarkerDom(area, d, mx, my) {
+  var layer = document.getElementById('fp-pick-markers');
+  if (!layer) return;
+  var el = layer.querySelector('.fp-defect-marker[data-defect-id="' + d.id + '"]');
+  if (!el) {
+    var idx = area.defects.indexOf(d);
+    var color = MARKER_COLORS[idx % MARKER_COLORS.length];
+    var circle = MARKER_CIRCLES[idx] || (idx + 1);
+    el = document.createElement('div');
+    el.className = 'fp-defect-marker active-pick';
+    el.setAttribute('data-defect-id', d.id);
+    el.style.background = color;
+    el.title = d.desc || ('Defect #' + (idx + 1));
+    el.textContent = circle;
+    layer.appendChild(el);
+  }
+  el.setAttribute('data-mx', mx);
+  el.setAttribute('data-my', my);
+  repositionFpMarkers();
 }
 
 // ── Floorplan pick modal: pinch-zoom & pan pada denah (mirip photo modal) ──
