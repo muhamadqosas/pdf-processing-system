@@ -2262,14 +2262,14 @@ function stopPolling() {
 function showGenDone() {
   document.getElementById('gen-progress-view').style.display = 'none';
   document.getElementById('gen-error-view').style.display = 'none';
-  document.getElementById('gen-done-view').style.display = '';
+  document.getElementById('gen-done-view').style.display = 'block';
   toast('Laporan berhasil dibuat', 'success');
 }
 
 function showGenError(msg) {
   document.getElementById('gen-progress-view').style.display = 'none';
   document.getElementById('gen-done-view').style.display = 'none';
-  document.getElementById('gen-error-view').style.display = '';
+  document.getElementById('gen-error-view').style.display = 'block';
   document.getElementById('gen-error-msg').textContent = msg || 'Terjadi kesalahan saat memproses laporan.';
   toast('Gagal membuat laporan', 'warning');
 }
