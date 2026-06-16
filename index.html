@@ -2164,8 +2164,9 @@ function buildReportPayload() {
       areas.push({ area_name: area.areaName || '', defects: defects });
     }
     var nomorUnitMatch = String(ub.unit || '').match(/(\d+)/);
-    var nomorUnit = nomorUnitMatch ? nomorUnitMatch[1] : '';
-    payload.units.push({ tower: ub.tower, lantai: ub.lantai || '', unit: ub.unit, date: ub.date, areas: areas, nomor_unit: nomorUnit, nomor_lantai: ub.lantai || '' });
+    var nomorUnit = nomorUnitMatch ? String(parseInt(nomorUnitMatch[1], 10)).padStart(2, '0') : '';
+    var nomorLantai = ub.lantai ? String(parseInt(ub.lantai, 10)).padStart(2, '0') : '';
+    payload.units.push({ tower: ub.tower, lantai: ub.lantai || '', unit: ub.unit, date: ub.date, areas: areas, nomor_unit: nomorUnit, nomor_lantai: nomorLantai });
   }
   return payload;
 }
