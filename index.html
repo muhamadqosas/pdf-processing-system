@@ -3,396 +3,435 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QC Defect - PDF ke Excel</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<title>Outstanding Unit Report</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --primary:#2563EB;--primary-dark:#1D4ED8;--primary-light:#EFF6FF;
-  --bg:#F1F5F9;--surface:#fff;--border:#E2E8F0;
-  --text:#0F172A;--muted:#64748B;--light:#94A3B8;
-  --success:#10B981;--success-bg:#ECFDF5;
-  --warning:#F59E0B;--warning-bg:#FFFBEB;
-  --danger:#EF4444;--danger-bg:#FEF2F2;
-  --radius:14px;--radius-sm:8px;
-  --shadow:0 4px 20px rgba(0,0,0,.08);
-}
-::-webkit-scrollbar{width:5px}
-::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:99px}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+  :root {
+    --blue-primary: #0F4C81;
+    --blue-secondary: #1E6FB9;
+    --blue-light: #EAF4FF;
+    --bg: #F5F9FD;
+    --white: #FFFFFF;
+    --border: #D6E4F2;
+    --text-dark: #1F2937;
+    --text-secondary: #6B7280;
+    --success: #16A34A;
+    --danger: #DC2626;
+    --warning: #F59E0B;
+    --orange: #EA580C;
+    --radius: 10px;
+    --shadow: 0 2px 12px rgba(15,76,129,0.10);
+    --shadow-lg: 0 6px 32px rgba(15,76,129,0.15);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: var(--text-dark); min-height: 100vh; }
 
-/* ── Topbar ── */
-.topbar{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;height:58px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 1px 4px rgba(0,0,0,.05)}
-.brand{display:flex;align-items:center;gap:10px}
-.brand-icon{width:34px;height:34px;background:linear-gradient(135deg,#2563EB,#7C3AED);border-radius:9px;display:flex;align-items:center;justify-content:center}
-.brand-icon svg{width:17px;height:17px;fill:#fff}
-.brand-name{font-size:15px;font-weight:700;letter-spacing:-.3px}
-.brand-sub{font-size:11px;color:var(--muted);margin-left:4px;font-weight:400}
-.topbar-right{display:flex;align-items:center;gap:8px}
-.status-pill{display:flex;align-items:center;gap:6px;background:var(--success-bg);border:1px solid #A7F3D0;border-radius:99px;padding:4px 12px;font-size:12px;font-weight:600;color:#059669}
-.live-dot{width:7px;height:7px;background:var(--success);border-radius:50%;animation:pulse-live 2s infinite;flex-shrink:0}
-@keyframes pulse-live{0%,100%{box-shadow:0 0 0 3px rgba(16,185,129,.2)}50%{box-shadow:0 0 0 6px rgba(16,185,129,.08)}}
+  /* ===== HEADER ===== */
+  .site-header {
+    position: sticky; top: 0; z-index: 1000;
+    background: linear-gradient(90deg, var(--blue-primary) 0%, var(--blue-secondary) 100%);
+    box-shadow: 0 2px 16px rgba(15,76,129,0.25);
+    padding: 0 16px;
+  }
+  .header-inner {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 56px; gap: 10px;
+  }
+  .header-logo { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .logo-box { width: 34px; height: 34px; background: rgba(255,255,255,0.18); border-radius: 7px; display: flex; align-items: center; justify-content: center; border: 1.5px solid rgba(255,255,255,0.3); flex-shrink: 0; }
+  .logo-box i { color: #fff; font-size: 17px; }
+  .logo-text { color: #fff; font-size: 11px; font-weight: 700; line-height: 1.2; }
+  .logo-text span { display: block; font-size: 9.5px; font-weight: 400; opacity: 0.75; }
+  .header-center { flex: 1; text-align: center; min-width: 0; }
+  .header-title { color: #fff; font-size: 14px; font-weight: 700; letter-spacing: 0.2px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .header-subtitle { color: rgba(255,255,255,0.75); font-size: 10px; margin-top: 1px; }
+  .header-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+  .badge-demo { background: var(--orange); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: 0.5px; white-space: nowrap; }
+  .header-proto { color: rgba(255,255,255,0.6); font-size: 9px; text-align: right; display: none; }
 
-/* ── Layout ── */
-.page{max-width:820px;margin:0 auto;padding:36px 20px 60px;width:100%}
+  /* ===== STATUS PILL & CONFIG ===== */
+  .status-pill { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.25); border-radius: 99px; padding: 4px 11px; font-size: 11px; font-weight: 700; color: #fff; }
+  .live-dot { width: 7px; height: 7px; background: #16A34A; border-radius: 50%; animation: pulse-live 2s infinite; flex-shrink: 0; }
+  .status-pill.offline .live-dot { background: #DC2626; animation: none; }
+  @keyframes pulse-live { 0%,100% { box-shadow: 0 0 0 3px rgba(22,163,74,0.25); } 50% { box-shadow: 0 0 0 6px rgba(22,163,74,0.08); } }
+  .btn-cfg-gear { background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.25); color: #fff; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; flex-shrink: 0; }
+  .btn-cfg-gear:hover { background: rgba(255,255,255,0.26); }
+  .header-right-row { display: flex; align-items: center; gap: 6px; }
+  .skeleton-opt { color: var(--text-secondary); font-style: italic; }
+  .btn-generate:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 
-/* ── Section title ── */
-.sec-label{font-size:11.5px;font-weight:700;color:var(--light);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px}
+  /* ===== MAIN ===== */
+  .main { max-width: 1200px; margin: 0 auto; padding: 16px 12px 60px; }
 
-/* ── Upload Card ── */
-.upload-card{background:var(--surface);border:2px dashed var(--border);border-radius:var(--radius);padding:48px 32px;text-align:center;cursor:pointer;transition:all .18s;margin-bottom:10px}
-.upload-card:hover,.upload-card.drag{border-color:var(--primary);background:var(--primary-light)}
-.upload-icon{width:70px;height:70px;background:var(--primary-light);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;transition:transform .18s}
-.upload-card:hover .upload-icon{transform:scale(1.06)}
-.upload-icon svg{width:30px;height:30px;color:var(--primary)}
-.upload-title{font-size:18px;font-weight:700;margin-bottom:6px}
-.upload-sub{font-size:13.5px;color:var(--muted);margin-bottom:18px}
-.chips{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
-.chip{background:var(--bg);border:1px solid var(--border);border-radius:99px;padding:4px 13px;font-size:11.5px;color:var(--muted);font-weight:500}
-#file-input{display:none}
+  /* ===== CARD ===== */
+  .card { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 16px; overflow: hidden; }
+  .card-header { padding: 14px 16px 11px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; background: linear-gradient(90deg, var(--blue-light) 0%, var(--white) 100%); }
+  .card-header-icon { width: 34px; height: 34px; background: var(--blue-primary); border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .card-header-icon i { color: #fff; font-size: 16px; }
+  .card-header-text h2 { font-size: 14px; font-weight: 700; color: var(--blue-primary); }
+  .card-header-text p { font-size: 11px; color: var(--text-secondary); margin-top: 1px; }
+  .card-body { padding: 14px; }
 
-/* ── File Selected ── */
-.file-row{display:none;align-items:center;gap:12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:13px 16px;margin-bottom:14px}
-.file-row.show{display:flex}
-.file-ico{width:40px;height:40px;background:#FEF2F2;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.file-ico svg{width:19px;height:19px;color:var(--danger)}
-.file-det{flex:1;min-width:0}
-.file-name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.file-size{font-size:12px;color:var(--muted);margin-top:2px}
-.btn-rm{background:none;border:none;cursor:pointer;color:var(--light);font-size:17px;padding:4px;line-height:1;transition:color .15s}
-.btn-rm:hover{color:var(--danger)}
+  .unit-block { margin-bottom: 0; }
+  .unit-block-body { padding: 4px 0; }
 
-/* ── Warning ── */
-.warn-box{display:flex;align-items:flex-start;gap:9px;background:var(--warning-bg);border:1px solid #FDE68A;border-radius:var(--radius-sm);padding:12px 15px;font-size:12.5px;color:#92400E;margin-bottom:14px}
-.warn-box svg{width:15px;height:15px;flex-shrink:0;margin-top:1px;color:var(--warning)}
+  /* ===== FORM ROW ===== */
+  .form-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .form-group select { width: 100%; border: 1.5px solid var(--border); border-radius: 7px; padding: 9px 12px; font-size: 14px; color: var(--text-dark); background: var(--white); transition: border-color 0.2s, box-shadow 0.2s; outline: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer; }
+  .form-group input[type=date] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; left: 0; bottom: 0; }
+  .date-display-wrap { position: relative; width: 100%; }
+  .date-display-text { width: 100%; border: 1.5px solid var(--border); border-radius: 7px; padding: 9px 12px; font-size: 14px; color: var(--text-dark); background: var(--white); cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 8px; transition: border-color 0.2s, box-shadow 0.2s; }
+  .date-display-text i { color: var(--text-secondary); font-size: 14px; flex-shrink: 0; }
+  .date-display-wrap:focus-within .date-display-text { border-color: var(--blue-secondary); box-shadow: 0 0 0 3px rgba(30,111,185,0.12); }
+  .date-edit-badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--blue-light); border: 1px solid var(--blue-secondary); color: var(--blue-secondary); font-size: 11px; cursor: pointer; transition: background 0.15s, color 0.15s; flex-shrink: 0; user-select: none; pointer-events: none; }
+  .date-display-text:hover { border-color: var(--blue-secondary); box-shadow: 0 0 0 3px rgba(30,111,185,0.12); }
+  .date-edit-badge i { font-size: 10px; }
+  .form-group select:focus { border-color: var(--blue-secondary); box-shadow: 0 0 0 3px rgba(30,111,185,0.12); }
 
-/* ── Main Action Button ── */
-.action-row{display:flex;justify-content:center;margin-bottom:28px}
-.btn-main{background:linear-gradient(135deg,#2563EB,#7C3AED);color:#fff;border:none;padding:15px 52px;border-radius:var(--radius);font-size:15.5px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:10px;box-shadow:0 4px 22px rgba(37,99,235,.32);transition:all .18s}
-.btn-main:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 7px 28px rgba(37,99,235,.4)}
-.btn-main:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
-.btn-main svg{width:18px;height:18px}
+  /* ===== AREA BLOCK ===== */
+  .area-block { border: 1.5px solid var(--border); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+  .area-block-header { background: #F8FBFF; padding: 9px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .area-name-input { border: none; border-bottom: 2px solid var(--border); border-radius: 0; padding: 2px 6px; font-size: 13px; font-weight: 700; color: var(--blue-primary); background: transparent; outline: none; min-width: 80px; max-width: 100%; flex: 1; transition: border-color 0.2s; }
+  .area-name-input:focus { border-bottom-color: var(--blue-secondary); background: var(--blue-light); border-radius: 4px 4px 0 0; }
+  .area-name-input::placeholder { color: #aaa; font-style: italic; font-weight: 400; }
+  .area-block-body { padding: 0; }
 
-/* ── Pipeline (how it works) ── */
-.pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-bottom:28px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
-.pipe-step{padding:18px 14px;text-align:center;border-right:1px solid var(--border);position:relative}
-.pipe-step:last-child{border-right:none}
-.pipe-num{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#2563EB,#7C3AED);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 8px}
-.pipe-icon{font-size:22px;margin-bottom:6px}
-.pipe-label{font-size:12px;font-weight:700;margin-bottom:3px}
-.pipe-desc{font-size:11px;color:var(--muted);line-height:1.5}
-.pipe-step.active-step{background:var(--primary-light)}
-.pipe-step.done-step{background:var(--success-bg)}
-.pipe-step.done-step .pipe-num{background:var(--success)}
-.pipe-arrow{position:absolute;right:-10px;top:50%;transform:translateY(-50%);z-index:2;width:20px;height:20px;background:var(--surface);border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid var(--border)}
-.pipe-arrow svg{width:11px;height:11px;color:var(--light)}
-.pipe-step:last-child .pipe-arrow{display:none}
+  /* ===== FLOORPLAN ===== */
+  .floorplan-container { position: relative; width: 100%; max-width: 1050px; margin: 0 auto; border-radius: 8px; overflow: hidden; border: 1.5px solid var(--border); background: #F8FBFF; cursor: default; user-select: none; }
+  .floorplan-container.picking { cursor: crosshair; box-shadow: 0 0 0 3px var(--blue-secondary), 0 4px 20px rgba(30,111,185,0.2); }
+  .floorplan-svg, .floorplan-image { width: 100%; display: block; }
+  .markers-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+  .defect-marker { position: absolute; transform: translate(-50%, -50%); min-width: 26px; height: 26px; padding: 0 5px; border-radius: 6px; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.22); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; color: #fff; cursor: pointer; pointer-events: all; transition: transform 0.15s, box-shadow 0.15s; z-index: 10; }
+  .defect-marker:hover { transform: translate(-50%,-50%) scale(1.18); box-shadow: 0 4px 16px rgba(0,0,0,0.28); }
 
-/* ── Progress ── */
-.prog-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;display:none;margin-bottom:16px}
-.prog-card.show{display:block}
-.prog-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
-.prog-label{font-size:14px;font-weight:600}
-.prog-pct{font-size:24px;font-weight:800;color:var(--primary)}
-.prog-bar-wrap{height:10px;background:var(--border);border-radius:99px;overflow:hidden;margin-bottom:16px}
-.prog-bar{height:100%;border-radius:99px;background:linear-gradient(90deg,#2563EB,#7C3AED);transition:width .35s ease;position:relative;overflow:hidden}
-.prog-bar::after{content:'';position:absolute;inset:0 -100%;width:60%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);animation:sh 1.6s infinite}
-@keyframes sh{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
-.prog-steps{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-.ps{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--light);transition:color .2s}
-.ps.act{color:var(--primary);font-weight:500}
-.ps.done{color:var(--success)}
-.ps-dot{width:19px;height:19px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;transition:all .2s}
-.ps.act .ps-dot{border-color:var(--primary);background:var(--primary-light);animation:pdot 1.2s infinite}
-.ps.done .ps-dot{border-color:var(--success);background:var(--success);color:#fff}
-@keyframes pdot{0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.3)}50%{box-shadow:0 0 0 4px rgba(37,99,235,.1)}}
+  /* ===== TABLE — DESKTOP ===== */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 580px; }
+  thead th { background: var(--blue-primary); color: #fff; font-size: 11.5px; font-weight: 700; padding: 9px 10px; text-align: left; letter-spacing: 0.3px; }
+  thead th:first-child { border-radius: 6px 0 0 0; }
+  thead th:last-child { border-radius: 0 6px 0 0; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.12s; }
+  tbody tr:hover { background: var(--blue-light); }
+  tbody td { padding: 9px 10px; vertical-align: middle; }
+  .td-no { width: 36px; font-weight: 700; color: var(--blue-primary); text-align: center; }
+  .td-desc input { border: 1.5px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 13px; width: 100%; min-width: 120px; color: var(--text-dark); transition: border-color 0.2s; outline: none; background: var(--white); }
+  .td-desc input:focus { border-color: var(--blue-secondary); box-shadow: 0 0 0 2px rgba(30,111,185,0.1); }
+  .td-area { width: 80px; min-width: 70px; max-width: 80px; overflow: hidden; }
+  .td-area-text { font-size: 12px; color: var(--text-dark); padding: 2px 0; font-weight: 500; }
 
-/* ── Queue ── */
-.queue-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:none;margin-bottom:16px}
-.queue-card.show{display:block}
-.queue-head{padding:13px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-.queue-title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px}
-.q-badge{background:var(--primary-light);color:var(--primary);font-size:11.5px;font-weight:700;padding:2px 10px;border-radius:99px}
-.q-list{padding:6px 0}
-.q-row{display:flex;align-items:center;gap:12px;padding:11px 20px;border-bottom:1px solid #F8FAFC;transition:background .12s}
-.q-row:last-child{border-bottom:none}
-.q-row.mine{background:#F0F7FF}
-.q-num{width:27px;height:27px;border-radius:50%;background:var(--bg);font-size:12px;font-weight:700;color:var(--muted);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.q-num.proc{background:var(--primary-light);color:var(--primary)}
-.q-num.me{background:linear-gradient(135deg,#2563EB,#7C3AED);color:#fff}
-.q-inf{flex:1;min-width:0}
-.q-name-row{display:flex;align-items:center;gap:6px}
-.q-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.q-me-tag{font-size:10px;color:var(--primary);font-weight:700;background:var(--primary-light);padding:2px 8px;border-radius:99px;white-space:nowrap;flex-shrink:0}
-.q-meta{font-size:11.5px;color:var(--light);margin-top:2px}
-.stbadge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:500;white-space:nowrap;flex-shrink:0}
-.sd{width:5px;height:5px;border-radius:50%;flex-shrink:0}
-.sp{background:#EFF6FF;color:#2563EB}.sp .sd{background:#2563EB;animation:pdot 1.2s infinite}
-.sw{background:#F1F5F9;color:#475569}.sw .sd{background:#94A3B8}
-.sk{background:var(--success-bg);color:#059669}.sk .sd{background:var(--success)}
-.se{background:var(--danger-bg);color:#DC2626}.se .sd{background:var(--danger)}
+  /* ===== FOTO ===== */
+  .foto-cell-empty { display: flex; align-items: center; gap: 8px; }
+  .foto-add-label { display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 6px; border: 1.5px dashed var(--border); background: var(--white); color: var(--text-secondary); font-size: 11.5px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+  .foto-add-label:hover { border-color: var(--blue-secondary); color: var(--blue-secondary); background: var(--blue-light); }
+  .foto-cell-filled { display: flex; align-items: flex-start; gap: 0; position: relative; }
+  .foto-thumb-wrap { position: relative; display: inline-block; width: 72px; height: 72px; border-radius: 6px; border: 1.5px solid var(--border); }
+  .foto-thumb { width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; display: block; transform: scale(1); border-radius: 5px; overflow: hidden; }
+  .foto-thumb-wrap:hover .foto-thumb { transform: scale(1.08); box-shadow: 0 2px 10px rgba(0,0,0,0.15); }
+  .foto-btn-x { position: absolute; top: -7px; right: -7px; width: 18px; height: 18px; border-radius: 50%; background: var(--danger); border: 1.5px solid #fff; color: #fff; font-size: 10px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 5; line-height: 1; }
+  .foto-btn-x:hover { background: #b91c1c; }
+  .foto-btn-change { position: absolute; top: -7px; left: -7px; width: 18px; height: 18px; border-radius: 50%; background: var(--blue-secondary); border: 1.5px solid #fff; color: #fff; font-size: 9px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 5; line-height: 1; }
+  .foto-btn-change:hover { background: var(--blue-primary); }
+  input[type=file] { display: none; }
 
-/* ── Log ── */
-.log-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:none;margin-bottom:16px}
-.log-card.show{display:block}
-.log-head{padding:11px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600}
-.log-body{padding:12px 16px;font-size:12px;font-family:'JetBrains Mono','Fira Code',monospace;display:flex;flex-direction:column;gap:4px;max-height:150px;overflow-y:auto}
-.ll{display:flex;gap:10px}
-.lt{color:var(--light);flex-shrink:0;width:52px}
-.lm.i{color:#2563EB}.lm.ok{color:var(--success)}.lm.w{color:var(--warning)}.lm.e{color:var(--danger)}.lm.c{color:#7C3AED}
+  /* ===== FOTO OFFLINE BADGE ===== */
+  .foto-offline-badge {
+    position: absolute; bottom: -7px; left: 50%; transform: translateX(-50%);
+    background: var(--orange); color: #fff; font-size: 8px; font-weight: 800;
+    padding: 1px 5px; border-radius: 20px; border: 1.5px solid #fff;
+    white-space: nowrap; z-index: 6; letter-spacing: 0.3px; pointer-events: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+  }
+  .foto-offline-retry {
+    position: absolute; bottom: -7px; right: -7px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--orange); border: 1.5px solid #fff; color: #fff;
+    font-size: 9px; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 6; line-height: 1;
+  }
+  .foto-offline-retry:hover { background: #c2410c; }
+  .foto-thumb-wrap.is-offline { border-color: var(--border); }
 
-/* ── Result ── */
-.result-card{background:var(--surface);border:1px solid #A7F3D0;border-radius:var(--radius);padding:32px;display:none;text-align:center;margin-bottom:16px}
-.result-card.show{display:block}
-.result-ico{width:68px;height:68px;background:var(--success-bg);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
-.result-ico svg{width:30px;height:30px;color:var(--success)}
-.result-title{font-size:22px;font-weight:800;margin-bottom:6px}
-.result-sub{font-size:13.5px;color:var(--muted);margin-bottom:22px;line-height:1.6}
-.result-file{background:var(--bg);border-radius:var(--radius-sm);padding:14px 18px;display:flex;align-items:center;gap:13px;margin-bottom:22px;text-align:left}
-.result-file-ico{width:42px;height:42px;background:var(--success-bg);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.result-file-ico svg{width:20px;height:20px;color:var(--success)}
-.result-fname{font-size:13.5px;font-weight:700}
-.result-fmeta{font-size:12px;color:var(--muted);margin-top:3px}
-.btn-dl{background:linear-gradient(135deg,#059669,#10B981);color:#fff;border:none;padding:14px 40px;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:9px;box-shadow:0 4px 18px rgba(16,185,129,.3);transition:all .18s;margin-bottom:12px}
-.btn-dl:hover{transform:translateY(-1px);box-shadow:0 6px 26px rgba(16,185,129,.4)}
-.btn-dl svg{width:17px;height:17px}
-.btn-again{background:none;border:1px solid var(--border);color:var(--muted);padding:10px 24px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;transition:all .15s}
-.btn-again:hover{border-color:var(--primary);color:var(--primary)}
+  /* ===== BUTTONS ===== */
+  .btn-marker { padding: 5px 10px; border-radius: 6px; border: 1.5px solid var(--border); background: var(--white); color: var(--text-secondary); font-size: 11.5px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; display: flex; align-items: center; gap: 4px; }
+  .btn-marker:hover { border-color: var(--blue-secondary); color: var(--blue-secondary); background: var(--blue-light); }
+  .btn-marker.has-marker { background: #DCFCE7; border-color: var(--success); color: var(--success); }
+  .btn { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.18s; letter-spacing: 0.2px; }
+  .btn-primary { background: var(--blue-primary); color: #fff; }
+  .btn-primary:hover { background: #0a3a63; box-shadow: 0 4px 14px rgba(15,76,129,0.28); transform: translateY(-1px); }
+  .btn-outline { background: var(--white); color: var(--blue-primary); border: 1.5px solid var(--blue-primary); }
+  .btn-outline:hover { background: var(--blue-light); }
+  .btn-danger-sm { background: var(--danger); color: #fff; font-size: 12px; padding: 6px 10px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; }
+  .btn-danger-sm:hover { background: #b91c1c; }
+  .btn-add-defect { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 8px; border: 1.5px dashed var(--blue-secondary); font-size: 13px; font-weight: 600; cursor: pointer; background: var(--blue-light); color: var(--blue-primary); transition: all 0.18s; margin: 12px; }
+  .btn-add-defect:hover { background: #d4eaff; border-style: solid; }
+  .btn-add-area { display: inline-flex; align-items: center; gap: 7px; padding: 7px 13px; border-radius: 8px; border: 1.5px dashed var(--border); font-size: 12px; font-weight: 600; cursor: pointer; background: #F8FBFF; color: var(--text-secondary); transition: all 0.18s; }
+  .btn-add-area:hover { border-color: var(--blue-secondary); color: var(--blue-primary); background: var(--blue-light); }
+  .btn-generate { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; padding: 14px; border-radius: 10px; border: none; font-size: 15px; font-weight: 700; cursor: pointer; background: linear-gradient(90deg, var(--blue-primary), var(--blue-secondary)); color: #fff; transition: all 0.2s; letter-spacing: 0.3px; box-shadow: 0 4px 16px rgba(15,76,129,0.25); }
+  .btn-generate:hover { opacity: 0.92; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(15,76,129,0.32); }
 
-/* ── Cancel Button ── */
-.btn-cancel{background:none;border:1.5px solid #FCA5A5;color:var(--danger);padding:9px 26px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .18s;font-family:inherit}
-.btn-cancel:hover:not(:disabled){background:var(--danger-bg);border-color:var(--danger)}
-.btn-cancel:disabled{opacity:.55;cursor:not-allowed;border-color:#FCA5A5;background:var(--warning-bg);color:#92400E}
-.btn-cancel svg{width:14px;height:14px}
-.cancel-row{display:flex;justify-content:center;margin-top:14px}
+  /* ===== EMPTY STATE ===== */
+  .empty-state { text-align: center; padding: 24px 16px; }
+  .empty-state i { font-size: 36px; color: var(--border); display: block; margin-bottom: 8px; }
+  .empty-state h3 { font-size: 14px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; }
+  .empty-state p { font-size: 11.5px; color: var(--text-secondary); }
 
-/* ── Area Source Setting ── */
-.area-source-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:14px}
-.area-source-header{display:flex;align-items:flex-start;gap:10px;margin-bottom:12px}
-.area-source-icon{width:32px;height:32px;background:var(--primary-light);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
-.area-source-icon svg{width:15px;height:15px;color:var(--primary)}
-.area-source-info{flex:1}
-.area-source-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px}
-.area-source-desc{font-size:12px;color:var(--muted);line-height:1.5}
-.area-source-options{display:flex;flex-direction:column;gap:7px}
-.area-opt{display:flex;align-items:flex-start;gap:11px;padding:10px 13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;background:var(--bg)}
-.area-opt:hover{border-color:#93C5FD;background:#F0F7FF}
-.area-opt.selected{border-color:var(--primary);background:var(--primary-light)}
-.area-opt input[type=radio]{margin-top:2px;flex-shrink:0;accent-color:var(--primary);width:15px;height:15px;cursor:pointer}
-.area-opt-body{flex:1}
-.area-opt-label{font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:7px;margin-bottom:3px}
-.area-opt-badge{font-size:10.5px;font-weight:700;padding:1px 8px;border-radius:99px;background:#DBEAFE;color:#1D4ED8}
-.area-opt.selected .area-opt-badge{background:#2563EB;color:#fff}
-.area-opt-example{font-size:11.5px;color:var(--text);font-family:'JetBrains Mono','Fira Code',monospace;background:var(--border);border-radius:4px;padding:2px 7px;display:inline-block;margin-bottom:3px;word-break:break-all}
-.area-opt-result{font-size:11.5px;color:var(--success);font-weight:600}
-/* ── Footer ── */
-.footer{margin-top:auto;border-top:1px solid var(--border);background:var(--surface);padding:14px 24px;text-align:center;font-size:12px;color:var(--light)}
+  /* ===== TOAST ===== */
+  #toast-container { position: fixed; top: 68px; right: 12px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; }
+  .toast { background: var(--text-dark); color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; box-shadow: 0 4px 20px rgba(0,0,0,0.22); display: flex; align-items: center; gap: 8px; min-width: 220px; max-width: min(300px, calc(100vw - 24px)); animation: toastIn 0.3s ease; }
+  .toast.success { background: var(--success); }
+  .toast.warning { background: var(--warning); }
+  .toast.info { background: var(--blue-primary); }
+  .toast.fade-out { animation: toastOut 0.3s ease forwards; }
 
-/* ── Tombol Batalkan per-baris antrian ── */
-.btn-cancel-row{background:none;border:1px solid #FCA5A5;color:var(--danger);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:all .15s;font-family:inherit;white-space:nowrap;flex-shrink:0}
-.btn-cancel-row:hover:not(:disabled){background:var(--danger-bg);border-color:var(--danger)}
-.btn-cancel-row:disabled{opacity:.5;cursor:not-allowed;background:var(--warning-bg);color:#92400E;border-color:#FDE68A}
+  /* ===== PHOTO MODAL ZOOM ===== */
+  #photo-modal-overlay { touch-action: none; overflow: hidden; }
+  .photo-zoom-wrap { position: relative; overflow: hidden; max-width: 90vw; max-height: 80vh; touch-action: none; display: flex; align-items: center; justify-content: center; }
+  .photo-zoom-wrap img { max-width: 90vw; max-height: 80vh; border-radius: 8px; display: block; margin: 0 auto; touch-action: none; user-select: none; -webkit-user-drag: none; will-change: transform; }
 
-@media(max-width:620px){
-  .pipeline{grid-template-columns:1fr 1fr}
-  .pipe-step:nth-child(2){border-right:none}
-  .pipe-step:nth-child(3){border-top:1px solid var(--border)}
-  .pipe-step .pipe-arrow{display:none}
-  .prog-steps{grid-template-columns:1fr}
-  .btn-main{width:100%;justify-content:center}
-}
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 5000; align-items: center; justify-content: center; animation: fadeIn 0.2s ease; padding: 16px; }
+  .modal-overlay.active { display: flex; }
+  .modal-box { background: var(--white); border-radius: 14px; box-shadow: 0 8px 48px rgba(0,0,0,0.25); padding: 24px 20px; width: 100%; max-width: 400px; animation: modalIn 0.25s ease; }
+  .modal-title { font-size: 17px; font-weight: 800; color: var(--blue-primary); margin-bottom: 6px; }
+  .modal-subtitle { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 20px; }
+  .progress-bar-wrap { background: var(--border); border-radius: 20px; height: 10px; margin-bottom: 12px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; border-radius: 20px; background: linear-gradient(90deg, var(--blue-primary), var(--blue-secondary)); width: 0%; transition: width 0.4s ease; }
+  .progress-label { font-size: 13px; font-weight: 700; color: var(--blue-primary); text-align: right; margin-bottom: 20px; }
+  .modal-done { display: none; text-align: center; padding: 8px 0; }
+  .modal-done i { font-size: 38px; color: var(--success); margin-bottom: 10px; display: block; }
+  .modal-done h3 { font-size: 15px; font-weight: 800; color: var(--text-dark); margin-bottom: 6px; }
+  .modal-done p { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 16px; }
+  .modal-footer { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+
+  /* ===== PICK OVERLAY ===== */
+  #pick-overlay { display: none; }
+
+  /* ===== FLOORPLAN PICK MODAL ===== */
+  #fp-pick-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 8000; align-items: center; justify-content: center; padding: 12px; animation: fadeIn 0.18s ease; }
+  #fp-pick-modal.active { display: flex; }
+  .fp-modal-box { background: var(--white); border-radius: 14px; box-shadow: 0 12px 60px rgba(0,0,0,0.45); width: 100%; max-width: min(1280px, calc(100vw - 24px)); height: calc(100vh - 24px); max-height: calc(100vh - 24px); overflow: hidden; display: flex; flex-direction: column; animation: modalIn 0.22s ease; }
+  .fp-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border-bottom: 1px solid var(--border); background: linear-gradient(90deg, var(--blue-light), var(--white)); flex-shrink: 0; }
+  .fp-modal-title { font-size: 15px; font-weight: 800; color: var(--blue-primary); display: flex; align-items: center; gap: 8px; }
+  .fp-modal-hint { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .fp-modal-close { width: 34px; height: 34px; border-radius: 50%; background: #fee2e2; border: none; color: var(--danger); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .fp-modal-close:hover { background: #fca5a5; }
+  .fp-modal-body { flex: 1; overflow: auto; padding: 14px; display: flex; align-items: center; justify-content: center; min-height: 0; }
+  .fp-pick-container { position: relative; width: 100%; height: 100%; border-radius: 8px; overflow: hidden; border: 2px solid var(--blue-secondary); box-shadow: 0 0 0 4px rgba(30,111,185,0.15); user-select: none; background: #F8FBFF; display: flex; align-items: center; justify-content: center; touch-action: none; }
+  .fp-pick-stage { position: relative; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; cursor: crosshair; will-change: transform; }
+  .fp-pick-stage img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
+  .fp-pick-markers { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+  .fp-defect-marker { position: absolute; transform: translate(-50%, -50%); min-width: 32px; height: 32px; padding: 0 6px; border-radius: 7px; border: 3px solid #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.28); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #fff; z-index: 10; }
+  .fp-defect-marker.active-pick { animation: pulse-marker 0.8s ease-in-out infinite alternate; }
+  @keyframes pulse-marker { from { box-shadow: 0 0 0 0 rgba(30,111,185,0.5), 0 2px 10px rgba(0,0,0,0.28); } to { box-shadow: 0 0 0 10px rgba(30,111,185,0), 0 2px 10px rgba(0,0,0,0.28); } }
+
+  /* Mobile: fullscreen */
+  @media (max-width: 767px) {
+    #fp-pick-modal { padding: 0; }
+    .fp-modal-box { border-radius: 0; width: 100vw; height: 100vh; max-width: 100vw; max-height: 100vh; height: 100dvh; max-height: 100dvh; }
+    .fp-modal-header { padding: 10px 14px; }
+    .fp-modal-title { font-size: 13px; }
+    .fp-modal-hint { font-size: 11px; }
+    .fp-modal-body { padding: 8px; }
+  }
+
+  /* ===== MOBILE CARD DEFECT ===== */
+  .defect-card { display: none; }
+
+  /* ===== RESPONSIVE BREAKPOINTS ===== */
+  @media (min-width: 768px) {
+    .site-header { padding: 0 24px; }
+    .header-inner { height: 64px; }
+    .logo-box { width: 40px; height: 40px; }
+    .logo-box i { font-size: 20px; }
+    .logo-text { font-size: 12px; }
+    .logo-text span { font-size: 10px; }
+    .header-title { font-size: 18px; }
+    .header-subtitle { font-size: 11.5px; }
+    .badge-demo { font-size: 11px; padding: 2px 10px; }
+    .header-proto { display: block; }
+    .main { padding: 24px 16px 60px; }
+    .card-body { padding: 20px; }
+    .form-row { gap: 14px; }
+  }
+
+  @media (max-width: 767px) {
+    /* Form: 2 kolom di atas, tanggal penuh */
+    .form-row { grid-template-columns: 1fr 1fr; }
+    .form-row .form-group:last-child { grid-column: 1 / -1; }
+
+    /* Floorplan lebih kecil di mobile */
+    .floorplan-container { max-width: 100%; }
+    .floorplan-wrap { padding: 10px 10px 6px; }
+
+    /* Table → Card view di mobile */
+    .table-wrap { overflow-x: visible; }
+    table { display: none; }
+    .defect-card { display: block; }
+    .dc-item { background: var(--white); border: 1.5px solid var(--border); border-radius: 8px; margin-bottom: 10px; overflow: hidden; }
+    .dc-header { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--blue-light); border-bottom: 1px solid var(--border); }
+    .dc-num { font-weight: 800; color: var(--blue-primary); font-size: 13px; }
+    .dc-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+    .dc-row { display: flex; flex-direction: column; gap: 4px; }
+    .dc-label { font-size: 10.5px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.4px; }
+    .dc-input { border: 1.5px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 14px; width: 100%; color: var(--text-dark); outline: none; background: var(--white); font-family: inherit; }
+    .dc-input:focus { border-color: var(--blue-secondary); box-shadow: 0 0 0 2px rgba(30,111,185,0.1); }
+    .dc-foto-row { display: flex; align-items: center; gap: 10px; }
+    .dc-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .btn-add-defect { margin: 10px 12px; }
+    .btn-marker { font-size: 12px; padding: 7px 12px; }
+
+    /* Modal footer stack */
+    .modal-footer { flex-direction: column; }
+    .modal-footer .btn { width: 100%; justify-content: center; }
+
+    /* Toast lebih kecil */
+    #toast-container { right: 8px; left: 8px; }
+    .toast { min-width: 0; max-width: 100%; font-size: 12.5px; }
+  }
+
+  @media (max-width: 400px) {
+    .form-row { grid-template-columns: 1fr; }
+    .form-row .form-group:last-child { grid-column: auto; }
+    .header-logo .logo-text { display: none; }
+  }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+  @keyframes toastIn { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateX(30px); } }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes highlightPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(220,53,69,0.5); } 50% { box-shadow: 0 0 0 6px rgba(220,53,69,0.18); } }
+  .field-error-highlight { border-color: var(--danger) !important; box-shadow: 0 0 0 3px rgba(220,53,69,0.18) !important; animation: highlightPulse 1s ease-in-out 3; }
+  .area-name-input.field-error-highlight { border-bottom-color: var(--danger) !important; }
+  .block-error-highlight { outline: 2px solid var(--danger); outline-offset: 2px; border-radius: 8px; animation: highlightPulse 1s ease-in-out 3; }
+
+  /* ===== ERROR STATE - DESC INPUT ===== */
+  .desc-error { border-color: var(--danger) !important; box-shadow: 0 0 0 2px rgba(220,38,38,0.18) !important; background: #fff5f5 !important; animation: highlightPulse 1s ease-in-out 3; }
+  .dc-input.desc-error { border-color: var(--danger) !important; box-shadow: 0 0 0 2px rgba(220,38,38,0.18) !important; background: #fff5f5 !important; }
+
+  /* ===== ERROR STATE - MARKER BUTTON ===== */
+  .btn-marker.marker-error { border-color: var(--danger) !important; color: var(--danger) !important; background: #fff5f5 !important; animation: highlightPulse 1s ease-in-out 3; }
+  .btn-marker.marker-error i { color: var(--danger); }
+
+  /* ===== ERROR STATE - AREA NAME ===== */
+  .area-name-input.area-error { border-bottom-color: var(--danger) !important; background: #fff5f5 !important; border-radius: 4px 4px 0 0; animation: highlightPulse 1s ease-in-out 3; }
 </style>
 </head>
 <body>
 
-<!-- Topbar -->
-<header class="topbar">
-  <div class="brand">
-    <div class="brand-icon">
-      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8 13h8v1.5H8V13zm0 3h5v1.5H8V16z"/></svg>
+<header class="site-header">
+  <div class="header-inner">
+    <div class="header-logo">
+      <div class="logo-box"><i class="bi bi-building-fill-check"></i></div>
+      <div class="logo-text">BAPL NRC<span>Project Management</span></div>
     </div>
-    <div>
-      <span class="brand-name">QC Defect</span>
-      <span class="brand-sub">PDF → Excel</span>
+    <div class="header-center">
+      <div class="header-title">OUTSTANDING UNIT REPORT</div>
+      <div class="header-subtitle">Monitoring Outstanding Unit</div>
     </div>
-  </div>
-  <div class="topbar-right">
-    <div class="status-pill">
-      <div class="live-dot"></div>
-      <span>Siap</span>
+    <div class="header-right">
+      <div class="header-right-row">
+        <div class="status-pill" id="status-pill"><div class="live-dot"></div><span id="status-pill-text">Mengecek...</span></div>
+        <button class="btn-cfg-gear" onclick="openBackendConfig()" title="Konfigurasi Backend URL" style="display:none;"><i class="bi bi-gear-fill"></i></button>
+      </div>
+      <span class="header-proto" id="header-proto-text"></span>
     </div>
-
   </div>
 </header>
 
-<div class="page">
+<div id="toast-container"></div>
 
-  <!-- Upload -->
-  <div id="upload-section">
-    <div class="sec-label">Upload File</div>
-
-    <div class="warn-box">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span>Hanya format <strong>PDF</strong>. Maks. <strong>10 file</strong> sekaligus. Setiap file jadi job terpisah dalam antrian FIFO.</span>
-    </div>
-
-    <div class="upload-card" id="upload-zone" onclick="document.getElementById('file-input').click()">
-      <input type="file" id="file-input" accept=".pdf" multiple onchange="handleFile(this.files)">
-      <div class="upload-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-      </div>
-      <div class="upload-title">Seret & letakkan file PDF</div>
-      <div class="upload-sub">atau klik untuk memilih dari perangkat kamu - bisa pilih beberapa sekaligus</div>
-      <div class="chips">
-        <span class="chip">PDF only</span>
-        <span class="chip">Maks. 10 file</span>
-        <span class="chip">QC Defect Report</span>
-      </div>
-    </div>
-
-    <!-- Multi-file list -->
-    <div id="file-list-wrap" style="display:none;margin-bottom:14px"></div>
-
-    <!-- Error file (terlalu besar / bukan PDF) -->
-    <div id="file-errors-wrap" style="display:none;margin-bottom:10px"></div>
-
-    <!-- Queue preview: tampilkan antrian aktif saat upload section terbuka -->
-    <div id="queue-preview-card" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px">
-      <div style="padding:11px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
-        <div style="font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px">
-          <div class="live-dot"></div>
-          Antrian Aktif
-        </div>
-        <div id="qp-badge" style="background:var(--primary-light);color:var(--primary);font-size:11.5px;font-weight:700;padding:2px 10px;border-radius:99px">- file</div>
-      </div>
-      <div id="qp-list" style="padding:6px 0"></div>
-    </div>
-
-    <!-- Pengaturan Sumber Nama Area -->
-    <div class="area-source-card" id="area-source-card">
-      <div class="area-source-header">
-        <div class="area-source-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 10h16M4 14h10"/><circle cx="17" cy="17" r="3"/><path d="m21 21-1.5-1.5"/></svg>
-        </div>
-        <div class="area-source-info">
-          <div class="area-source-title">Sumber Nama Area</div>
-          <div class="area-source-desc">Pilih bagian heading yang akan digunakan sebagai nama area saat proses parsing.</div>
-        </div>
-      </div>
-      <div class="area-source-options">
-        <label class="area-opt" id="area-opt-first" onclick="setAreaSource('first')">
-          <input type="radio" name="area_source_mode" value="first" id="radio-first">
-          <div class="area-opt-body">
-            <div class="area-opt-label">
-              Bagian Pertama
-            </div>
-            <div class="area-opt-example"><strong>Living Room</strong> - LVP35 - Blueprint - Floor 1</div>
-            <div class="area-opt-result">→ Hasil: <strong>Living Room</strong></div>
-          </div>
-        </label>
-        <label class="area-opt selected" id="area-opt-second" onclick="setAreaSource('second')">
-          <input type="radio" name="area_source_mode" value="second" id="radio-second" checked>
-          <div class="area-opt-body">
-            <div class="area-opt-label">
-              Bagian Kedua
-              <span class="area-opt-badge">Default</span>
-            </div>
-            <div class="area-opt-example">LVP35 - <strong>Living Room</strong> - Blueprint - Floor 1</div>
-            <div class="area-opt-result">→ Hasil: <strong>Living Room</strong></div>
-          </div>
-        </label>
-      </div>
-    </div>
-
-    <div class="action-row">
-      <button class="btn-main" id="btn-main" disabled onclick="startProcess()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
-        Proses File
-      </button>
-    </div>
-  </div>
-
-  <!-- Pipeline / Alur Proses -->
-  <div class="pipeline" id="pipeline" style="margin-bottom:16px">
-    <div class="pipe-step" id="ps0">
-      <div class="pipe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
-      <div class="pipe-num">1</div>
-      <div class="pipe-icon">📄</div>
-      <div class="pipe-label">Upload PDF</div>
-      <div class="pipe-desc">Pilih file QC</div>
-    </div>
-    <div class="pipe-step" id="ps1">
-      <div class="pipe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
-      <div class="pipe-num">2</div>
-      <div class="pipe-icon">🔄</div>
-      <div class="pipe-label">Konversi</div>
-      <div class="pipe-desc">PDF → Excel<br>via ilovepdf</div>
-    </div>
-    <div class="pipe-step" id="ps2">
-      <div class="pipe-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
-      <div class="pipe-num">3</div>
-      <div class="pipe-icon">☁️</div>
-      <div class="pipe-label">Drive + Script</div>
-      <div class="pipe-desc">Upload Drive &<br>Apps Script</div>
-    </div>
-    <div class="pipe-step" id="ps3">
-      <div class="pipe-num">4</div>
-      <div class="pipe-icon">⬇️</div>
-      <div class="pipe-label">Download</div>
-      <div class="pipe-desc">Hasil langsung<br>diunduh di web</div>
-    </div>
-  </div>
-
-  <!-- Progress -->
-  <div class="prog-card" id="prog-card">
-    <div class="prog-head">
-      <div class="prog-label" id="prog-label">Memproses…</div>
-      <div class="prog-pct" id="prog-pct">0%</div>
-    </div>
-    <div class="prog-bar-wrap"><div class="prog-bar" id="prog-bar" style="width:0%"></div></div>
-    <div class="prog-steps" id="prog-steps"></div>
-
-  </div>
-
-  <!-- Queue -->
-  <div class="queue-card" id="queue-card">
-    <div class="queue-head">
-      <div class="queue-title">
-        <div class="live-dot"></div>
-        Antrian
-      </div>
-      <div class="q-badge" id="q-badge">0 file</div>
-    </div>
-    <div class="q-list" id="q-list"></div>
-  </div>
-
-  <!-- Log -->
-  <div class="log-card" id="log-card">
-    <div class="log-head">
-      <span>Log Proses</span>
-      <span style="font-size:11px;color:var(--light);font-weight:400" id="log-elapsed">0.0 s</span>
-    </div>
-    <div class="log-body" id="log-body"></div>
-  </div>
-
-  <!-- Result -->
-  <div class="result-card" id="result-card">
-    <div class="result-ico">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
-    </div>
-    <div class="result-title" id="result-title">Konversi Selesai! ✅</div>
-    <div class="result-sub" id="result-sub">File Excel hasil QC siap diunduh langsung dari halaman ini.</div>
-    <!-- Daftar file hasil - diisi oleh JS -->
-    <div id="result-files-list" style="width:100%;margin-bottom:20px"></div>
-    <br>
-    <button class="btn-again" onclick="reset()">↩ Proses file lain</button>
-  </div>
-
+<div id="pick-overlay">
+  <i class="bi bi-crosshair"></i> Klik lokasi defect pada denah —
+  <button onclick="cancelPick()" style="background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:12px;border-radius:4px;padding:2px 8px;cursor:pointer;margin-left:6px;">Batal</button>
 </div>
 
-<footer class="footer">
-  QC Defect - PDF ke Excel &copy; 2026 &bull; ilovepdf · Google Drive · Apps Script
-</footer>
+<div class="main">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-header-icon"><i class="bi bi-building"></i></div>
+      <div class="card-header-text">
+        <h2>Informasi Unit</h2>
+        <p>Data utama unit dan area yang akan diperiksa</p>
+      </div>
+    </div>
+    <div class="card-body" id="unit-blocks-container"></div>
+  </div>
+
+  <button class="btn-generate" id="btn-generate" onclick="openGenModal()">
+    <i class="bi bi-file-earmark-arrow-down-fill"></i> Generate Outstanding Report
+  </button>
+</div>
+
+<!-- GENERATE MODAL -->
+<div class="modal-overlay" id="gen-modal">
+  <div class="modal-box">
+    <div id="gen-progress-view">
+      <div class="modal-title" id="gen-progress-title">Membuat Laporan...</div>
+      <div class="modal-subtitle" id="gen-progress-subtitle">Menyiapkan data laporan outstanding unit</div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="gen-progress-fill"></div></div>
+      <div class="progress-label" id="gen-progress-label">0%</div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" id="gen-cancel-btn" onclick="cancelGenerate()"><i class="bi bi-x-circle"></i> Batalkan</button>
+      </div>
+    </div>
+    <div class="modal-done" id="gen-done-view">
+      <i class="bi bi-check-circle-fill"></i>
+      <h3>Laporan Berhasil Dibuat</h3>
+      <p>File siap untuk diunduh</p>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="downloadReportFile('pdf')"><i class="bi bi-filetype-pdf"></i> Download PDF</button>
+        <button class="btn btn-outline" onclick="downloadReportFile('csv')"><i class="bi bi-filetype-csv"></i> Download CSV</button>
+        <button class="btn btn-outline" onclick="closeGenModal()"><i class="bi bi-x"></i> Tutup</button>
+      </div>
+    </div>
+    <div class="modal-done" id="gen-error-view" style="display:none;">
+      <i class="bi bi-exclamation-triangle-fill" style="color:var(--danger);"></i>
+      <h3>Gagal Membuat Laporan</h3>
+      <p id="gen-error-msg">Terjadi kesalahan saat memproses laporan.</p>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="retryGenerate()"><i class="bi bi-arrow-repeat"></i> Coba Lagi</button>
+        <button class="btn btn-outline" onclick="closeGenModal()"><i class="bi bi-x"></i> Tutup</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- PHOTO MODAL -->
+<div class="modal-overlay" id="photo-modal-overlay" style="background:rgba(0,0,0,0.75);">
+  <div style="position:relative;">
+    <div class="photo-zoom-wrap" id="photo-zoom-wrap">
+      <img id="photo-modal-img" src="" alt="preview" style="max-width:90vw;max-height:80vh;border-radius:8px;display:block;margin:0 auto;">
+    </div>
+    <button onclick="closePhotoModal()" style="position:absolute;top:-14px;right:-14px;width:32px;height:32px;border-radius:50%;background:var(--danger);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:2;"><i class="bi bi-x"></i></button>
+  </div>
+</div>
+
+<!-- FLOORPLAN PICK MODAL -->
+<div id="fp-pick-modal">
+  <div class="fp-modal-box">
+    <div class="fp-modal-header">
+      <div>
+        <div class="fp-modal-title"><i class="bi bi-crosshair"></i> Pilih Lokasi Defect</div>
+        <div class="fp-modal-hint">Ketuk pada denah untuk menempatkan marker — popup akan otomatis tertutup</div>
+      </div>
+      <button class="fp-modal-close" onclick="cancelPickModal()" title="Batal"><i class="bi bi-x"></i></button>
+    </div>
+    <div class="fp-modal-body">
+      <div class="fp-pick-container" id="fp-pick-container">
+        <div class="fp-pick-stage" id="fp-pick-stage">
+          <img id="fp-pick-img" src="" alt="Denah Unit" crossorigin="anonymous">
+          <div class="fp-pick-markers" id="fp-pick-markers"></div>
+        </div>
+      </div>
+    </div>
+    <div class="fp-modal-hint" style="text-align:center;padding:6px 14px 10px;color:var(--text-secondary);font-size:12px;">
+      <i class="bi bi-zoom-in"></i> Cubit (pinch) atau scroll untuk zoom denah, geser untuk pan
+    </div>
+  </div>
+</div>
 
 <script>
 // ══════════════════════════════════════════════
@@ -401,37 +440,28 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 const CONFIG = {
   DEFAULT_API_BASE: 'https://api.qcdefect.online',
   get API_BASE() {
-    return localStorage.getItem('API_BASE') || this.DEFAULT_API_BASE;
+    return localStorage.getItem('OUR_API_BASE') || this.DEFAULT_API_BASE;
   }
 };
 
-// Helper: bangun URL endpoint
 function api(path) {
   return CONFIG.API_BASE + path;
 }
 
-// ── Session persistence key ──
-const SESSION_KEY = 'qcdefect_session';
+// ── Session persistence ──
+const SESSION_KEY = 'oustanding_report_session';
 
-// ── Simpan session ke sessionStorage (hanya data yg serializable) ──
 function saveSession() {
   try {
-    const s = {
-      jobId:          jobId,
-      uploadedJobs:   uploadedJobs,
-      completedJobIds: completedJobIds,
-      t0:             t0
-    };
+    const s = { unitBlocks: unitBlocks, jobId: jobId, t0: t0 };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(s));
   } catch (_) {}
 }
 
-// ── Hapus session dari sessionStorage ──
 function clearSession() {
   try { sessionStorage.removeItem(SESSION_KEY); } catch (_) {}
 }
 
-// ── Baca session dari sessionStorage ──
 function loadSession() {
   try {
     const raw = sessionStorage.getItem(SESSION_KEY);
@@ -440,585 +470,1757 @@ function loadSession() {
   } catch (_) { return null; }
 }
 
+function formatTanggal(val) {
+  if (!val) return '';
+  var d = new Date(val + 'T00:00:00');
+  var bulan = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+  return d.getDate() + ' ' + bulan[d.getMonth()] + ' ' + d.getFullYear();
+}
+
 // ── State ──
-let selFiles = [];       // array File objects yang valid (multi-upload)
-let selFile = null;      // alias ke selFiles[0] - backward compat untuk showResult/download
-let jobId = null;        // job_id dari upload terakhir yang sedang dipantau
-let uploadedJobs = [];   // [{job_id, filename, status}] dari response multi-upload
-let completedJobIds = []; // job_id yang sudah selesai - di sini bukan di tengah kode
-let t0 = null;
-let pollIv = null;
-let elapsedIv = null;
-let currentProgress = 0;
-let lastStatus = null;
-let lastStage = null;
-let queuePreviewIv = null; // interval refresh queue-preview di upload section
-// cancelRequested: ID job milik user yg sedang dibatalkan, atau null
-// (bukan boolean — agar cancel tidak bisa "bocor" ke job lain)
-let cancelRequested = null;
-
-// ── Area Source Mode — default 'second', persisten selama tab aktif ──
-const AREA_SOURCE_KEY = 'qcdefect_area_source_mode';
-let areaSourceMode = (function() {
-  try { return sessionStorage.getItem(AREA_SOURCE_KEY) || 'second'; } catch(_) { return 'second'; }
-})();
-
-function setAreaSource(mode) {
-  areaSourceMode = mode;
-  try { sessionStorage.setItem(AREA_SOURCE_KEY, mode); } catch(_) {}
-  // Update visual state
-  ['first', 'second'].forEach(function(m) {
-    var opt = document.getElementById('area-opt-' + m);
-    var radio = document.getElementById('radio-' + m);
-    if (!opt || !radio) return;
-    if (m === mode) {
-      opt.classList.add('selected');
-      radio.checked = true;
-    } else {
-      opt.classList.remove('selected');
-      radio.checked = false;
-    }
-  });
-}
-
-// Terapkan mode tersimpan saat halaman dimuat
-(function applyStoredAreaSource() {
-  // Dijalankan setelah DOM siap — defer via event
-  document.addEventListener('DOMContentLoaded', function() { setAreaSource(areaSourceMode); });
-  // Juga jalankan langsung kalau DOM sudah ada
-  if (document.readyState !== 'loading') setAreaSource(areaSourceMode);
-})();
-
-// ── Steps (visual) ──
-const STEPS = [
-  'Validasi & upload PDF',
-  'Konversi PDF → Excel (ilovepdf)',
-  'Upload Excel ke Google Drive',
-  'Jalankan Apps Script',
-  'Proses data QC di Spreadsheet',
-  'Download hasil dari Drive',
-  'Finalisasi & siap unduh',
+var TOWERS = [
+  { value: 'TOWER 1', label: 'TOWER 1' },
+  { value: 'TOWER 2', label: 'TOWER 2' }
+];                                 // daftar tetap (hardcode)
+var TOWER_UNITS = {                // daftar unit tetap per tower (hardcode)
+  'TOWER 1': ['UNIT 01','UNIT 02','UNIT 03','UNIT 05','UNIT 06','UNIT 07','UNIT 08','UNIT 09','UNIT 10','UNIT 11'],
+  'TOWER 2': ['UNIT 18','UNIT 19','UNIT 20','UNIT 21','UNIT 23','UNIT 25','UNIT 26','UNIT 27','UNIT 28','UNIT 29']
+};
+var TOWER_UNITS_CACHE = {};       // tower -> [unit,...]
+var MARKER_COLORS = [
+  '#DC2626', '#1E6FB9', '#16A34A', '#F59E0B', '#7C3AED',
+  '#0891B2', '#DB2777', '#65A30D', '#EA580C', '#4F46E5',
+  '#0D9488', '#CA8A04', '#9333EA', '#E11D48', '#2563EB',
+  '#15803D', '#B45309', '#6D28D9', '#0E7490', '#BE123C',
+  '#4D7C0F', '#C2410C', '#1D4ED8', '#A21CAF', '#047857',
+  '#92400E', '#5B21B6', '#0369A1', '#9F1239', '#3F6212'
 ];
+// Marker tampil sebagai badge warna + nomor (bukan simbol bulat bernomor)
+var MARKER_CIRCLES = [];
 
-// ── Helpers ──
-function ts() {
-  return ((Date.now() - (t0 || Date.now())) / 1000).toFixed(1) + 's';
+var unitBlocks = [];
+var pickingInfo = null;
+var jobId = null;
+var t0 = null;
+var pollIv = null;
+var cancelRequested = false;
+
+function uid() { return Math.random().toString(36).slice(2,10); }
+
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function addLog(msg, type) {
-  type = type || 'i';
-  const body = document.getElementById('log-body');
-  const line = document.createElement('div');
-  line.className = 'll';
-  line.innerHTML = '<span class="lt">' + ts() + '</span><span class="lm ' + type + '">' + msg + '</span>';
-  body.appendChild(line);
-  body.scrollTop = body.scrollHeight;
-}
-
-function setProgress(pct, label) {
-  const p = Math.max(0, Math.min(100, Math.round(pct)));
-  document.getElementById('prog-bar').style.width = p + '%';
-  document.getElementById('prog-pct').textContent = p + '%';
-  if (label) document.getElementById('prog-label').textContent = label;
-  currentProgress = p;
-}
-
+// ══════════════════════════════════════════════
+//  STATUS PILL
+// ══════════════════════════════════════════════
 function setStatusPill(online) {
-  const pill = document.querySelector('.status-pill');
-  const dot = pill.querySelector('.live-dot');
-  const span = pill.querySelector('span');
+  var pill = document.getElementById('status-pill');
+  var text = document.getElementById('status-pill-text');
+  if (!pill || !text) return;
   if (online) {
-    pill.style.background = 'var(--success-bg)';
-    pill.style.borderColor = '#A7F3D0';
-    pill.style.color = '#059669';
-    dot.style.background = 'var(--success)';
-    dot.style.animation = '';
-    span.textContent = 'Siap';
+    pill.classList.remove('offline');
+    text.textContent = 'Siap';
   } else {
-    pill.style.background = 'var(--danger-bg)';
-    pill.style.borderColor = '#FCA5A5';
-    pill.style.color = '#DC2626';
-    dot.style.background = 'var(--danger)';
-    dot.style.animation = 'none';
-    span.textContent = 'Offline';
+    pill.classList.add('offline');
+    text.textContent = 'Offline';
   }
 }
 
-// ── Drag & drop ──
-const zone = document.getElementById('upload-zone');
-zone.addEventListener('dragover', function(e) { e.preventDefault(); zone.classList.add('drag'); });
-zone.addEventListener('dragleave', function() { zone.classList.remove('drag'); });
-zone.addEventListener('drop', function(e) {
-  e.preventDefault();
-  zone.classList.remove('drag');
-  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files);
+async function checkBackendStatus() {
+  try {
+    var res = await fetch(api('/status'), { signal: AbortSignal.timeout(5000) });
+    var data = await res.json();
+    setStatusPill(data && data.success === true);
+    return data && data.success === true;
+  } catch (_) {
+    setStatusPill(false);
+    return false;
+  }
+}
+
+// ══════════════════════════════════════════════
+//  BACKEND CONFIG MODAL
+// ══════════════════════════════════════════════
+async function openBackendConfig() {
+  var current = CONFIG.API_BASE;
+  var isDefault = !localStorage.getItem('OUR_API_BASE');
+
+  var overlay = document.createElement('div');
+  overlay.id = 'cfg-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:9500;display:flex;align-items:center;justify-content:center;padding:20px;font-family:inherit';
+
+  overlay.innerHTML = [
+    '<div style="background:#fff;border-radius:14px;padding:24px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)">',
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">',
+        '<div style="font-size:15px;font-weight:800;color:var(--blue-primary);display:flex;align-items:center;gap:8px">',
+          '<i class="bi bi-gear-fill"></i> Konfigurasi Backend URL',
+        '</div>',
+        '<button onclick="document.getElementById(\'cfg-overlay\').remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--text-secondary);line-height:1;padding:2px">&times;</button>',
+      '</div>',
+      '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;font-weight:600">URL Backend (Cloudflare Tunnel)</div>',
+      '<input id="cfg-input" type="url" value="' + escHtml(current) + '" ',
+        'style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;font-family:inherit;color:var(--text-dark);outline:none;margin-bottom:6px" ',
+        'placeholder="https://xxxx.trycloudflare.com">',
+      '<div style="font-size:11.5px;color:var(--text-secondary);margin-bottom:18px">',
+        isDefault ? 'Menggunakan URL default' : 'URL tersimpan dari localStorage',
+      '</div>',
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">',
+        '<button id="cfg-save" class="btn btn-primary" style="flex:1;justify-content:center;" onclick="saveBackendUrl()">Simpan &amp; Test Koneksi</button>',
+        '<button class="btn btn-outline" onclick="resetBackendUrl()">Reset ke Default</button>',
+      '</div>',
+    '</div>'
+  ].join('');
+
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+  setTimeout(function() { var i = document.getElementById('cfg-input'); if (i) i.focus(); }, 50);
+}
+
+async function saveBackendUrl() {
+  var input = document.getElementById('cfg-input');
+  if (!input) return;
+  var url = input.value.trim().replace(/\/$/, '');
+  if (!url.startsWith('http')) {
+    toast('URL tidak valid, harus diawali https://', 'warning');
+    return;
+  }
+  var btn = document.getElementById('cfg-save');
+  if (btn) { btn.textContent = 'Menguji koneksi…'; btn.disabled = true; btn.style.opacity = '.7'; }
+  try {
+    var res = await fetch(url + '/status', { signal: AbortSignal.timeout(6000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    localStorage.setItem('OUR_API_BASE', url);
+    var overlay = document.getElementById('cfg-overlay');
+    if (overlay) overlay.remove();
+    toast('Backend terhubung', 'success');
+    setStatusPill(data.success === true || data.status !== undefined);
+    loadInitialData();
+  } catch (err) {
+    if (btn) { btn.textContent = 'Simpan & Test Koneksi'; btn.disabled = false; btn.style.opacity = '1'; }
+    toast('Backend tidak dapat dihubungi', 'warning');
+    setStatusPill(false);
+  }
+}
+
+function resetBackendUrl() {
+  localStorage.removeItem('OUR_API_BASE');
+  var overlay = document.getElementById('cfg-overlay');
+  if (overlay) overlay.remove();
+  toast('URL backend direset ke default', 'info');
+  checkBackendStatus();
+  loadInitialData();
+}
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('photo-modal-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closePhotoModal();
+  });
+  initPhotoZoomHandlers();
+  document.getElementById('gen-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      // Jangan tutup modal saat proses generate sedang berjalan
+      if (jobId && pollIv) return;
+      closeGenModal();
+    }
+  });
+  init();
 });
 
-// ── File handling (multi) ──
-const MAX_FILES = 10;
-const MAX_MB    = 15;
+async function init() {
+  await checkBackendStatus();
+  await loadTowers();
 
-function handleFile(files) {
-  const valid   = [];
-  const errors  = [];
+  var session = loadSession();
+  if (session && session.unitBlocks && session.unitBlocks.length > 0) {
+    unitBlocks = session.unitBlocks;
+    t0 = session.t0 || Date.now();
+    jobId = session.jobId || null;
 
-  // Deduplikasi: nama file yang sudah ada di selFiles
-  const existingNames = new Set(selFiles.map(function(f) { return f.name; }));
-
-  Array.from(files).slice(0, MAX_FILES + 5).forEach(function(f) {
-    if (!f.name.toLowerCase().endsWith('.pdf')) {
-      errors.push({ name: f.name, reason: 'Bukan file PDF' });
-    } else if (existingNames.has(f.name)) {
-      errors.push({ name: f.name, reason: 'File sudah ada dalam daftar' });
-    } else {
-      valid.push(f);
-      existingNames.add(f.name);
+    // Pastikan setiap unit block punya cache unit-list untuk tower-nya
+    for (var i = 0; i < unitBlocks.length; i++) {
+      await ensureUnitsLoaded(unitBlocks[i].tower);
     }
-  });
+    renderAllUnits();
 
-  // Gabungkan kumulatif, lalu cek total tidak melebihi MAX_FILES
-  const combined = selFiles.concat(valid);
-  const overflow = combined.splice(MAX_FILES);
-  overflow.forEach(function(f) {
-    errors.push({ name: f.name, reason: 'Melebihi batas ' + MAX_FILES + ' file sekaligus' });
-  });
-
-  selFiles = combined;
-  selFile  = selFiles[0] || null;
-
-  renderFileList();
-  renderFileErrors(errors);
-  document.getElementById('btn-main').disabled = (selFiles.length === 0);
-  if (selFiles.length > 0) {
-    document.getElementById('btn-main').innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>' +
-      ' Proses ' + selFiles.length + ' File';
-  } else {
-    document.getElementById('btn-main').innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>' +
-      ' Proses File';
-  }
-}
-
-function renderFileList() {
-  const wrap = document.getElementById('file-list-wrap');
-  if (selFiles.length === 0) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
-  wrap.style.display = 'block';
-  wrap.innerHTML = selFiles.map(function(f, i) {
-    return '<div class="file-row show" style="margin-bottom:6px">' +
-      '<div class="file-ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 1.5L18.5 9H13V3.5z"/></svg></div>' +
-      '<div class="file-det">' +
-        '<div class="file-name">' + escHtml(f.name) + '</div>' +
-        '<div class="file-size">' + (f.size/1024/1024).toFixed(2) + ' MB · PDF</div>' +
-      '</div>' +
-      '<button class="btn-rm" onclick="removeFile(' + i + ')" title="Hapus">✕</button>' +
-    '</div>';
-  }).join('');
-}
-
-function renderFileErrors(errors) {
-  const wrap = document.getElementById('file-errors-wrap');
-  if (!errors || errors.length === 0) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
-  wrap.style.display = 'block';
-  wrap.innerHTML = errors.map(function(e) {
-    return '<div class="warn-box" style="margin-bottom:5px">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
-      '<span><strong>' + escHtml(e.name) + '</strong> - ' + escHtml(e.reason) + '</span>' +
-    '</div>';
-  }).join('');
-}
-
-function removeFile(idx) {
-  selFiles.splice(idx, 1);
-  selFile = selFiles[0] || null;
-  if (selFiles.length === 0) {
-    document.getElementById('file-input').value = '';
-    document.getElementById('btn-main').disabled = true;
-    document.getElementById('btn-main').innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Proses File';
-  } else {
-    document.getElementById('btn-main').innerHTML =
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Proses ' + selFiles.length + ' File';
-  }
-  renderFileList();
-}
-
-// ── clearFile: backward compat (tidak lagi dipanggil dari HTML, tapi jaga2) ──
-function clearFile(e) {
-  if (e) e.stopPropagation();
-  selFiles = [];
-  selFile = null;
-  document.getElementById('file-input').value = '';
-  renderFileList();
-  document.getElementById('btn-main').disabled = true;
-}
-
-// ── Queue preview di upload section ──
-async function refreshQueuePreview() {
-  try {
-    const res  = await fetch(api('/queue'));
-    const data = await res.json();
-    const card  = document.getElementById('queue-preview-card');
-    const badge = document.getElementById('qp-badge');
-    const list  = document.getElementById('qp-list');
-
-    const jobs  = data.active_jobs || [];
-    const activeCount = (data.waiting || 0) + (data.processing || 0);
-
-    if (activeCount === 0 && jobs.length === 0) {
-      card.style.display = 'none';
-      return;
-    }
-
-    card.style.display = 'block';
-    badge.textContent  = activeCount + ' file';
-
-    const bmap = {
-      processing: '<span class="stbadge sp"><span class="sd"></span>Sedang Diproses</span>',
-      waiting:    '<span class="stbadge sw"><span class="sd"></span>Menunggu</span>',
-      completed:  '<span class="stbadge sk"><span class="sd"></span>Selesai</span>',
-      error:      '<span class="stbadge se"><span class="sd"></span>Gagal</span>',
-    };
-
-    if (jobs.length === 0) {
-      list.innerHTML = '<div style="padding:14px 20px;font-size:12.5px;color:var(--light)">Antrian kosong</div>';
-      return;
-    }
-
-    // Buat map job_id → filename dari uploadedJobs untuk pengecekan milik sendiri
-    const myJobMap = {};
-    uploadedJobs.forEach(function(j) { myJobMap[j.job_id] = j.filename; });
-
-    list.innerHTML = jobs.map(function(job, idx) {
-      const isMine   = !!(job.is_current_user === true || myJobMap[job.job_id]);
-      const isProc   = job.status === 'processing';
-      const posLabel = isProc ? '▶' : ('#' + (job.queue_position || (idx + 1)));
-      const numClass = isProc ? 'q-num proc' : (isMine ? 'q-num me' : 'q-num');
-      const sizeMb   = (typeof job.file_size_mb === 'number') ? job.file_size_mb.toFixed(2) + ' MB' : '';
-      const displayName = isMine ? (myJobMap[job.job_id] || job.filename || 'File Anda') : 'File User Lain';
-      const meTag = isMine ? '<span class="q-me-tag">&#9654; Milikmu</span>' : '';
-      return '<div class="q-row' + (isMine ? ' mine' : '') + '">' +
-        '<div class="' + numClass + '">' + posLabel + '</div>' +
-        '<div class="q-inf">' +
-          '<div class="q-name-row">' +
-            '<span class="q-name">' + escHtml(displayName) + '</span>' + meTag +
-          '</div>' +
-          '<div class="q-meta">' + sizeMb + '</div>' +
-        '</div>' +
-        (bmap[job.status] || '') +
-      '</div>';
-    }).join('');
-  } catch (_) {
-    // Backend belum ready - sembunyikan saja
-    document.getElementById('queue-preview-card').style.display = 'none';
-  }
-}
-
-function startQueuePreview() {
-  refreshQueuePreview();
-  if (queuePreviewIv) clearInterval(queuePreviewIv);
-  queuePreviewIv = setInterval(refreshQueuePreview, 4000);
-}
-
-function stopQueuePreview() {
-  if (queuePreviewIv) { clearInterval(queuePreviewIv); queuePreviewIv = null; }
-  document.getElementById('queue-preview-card').style.display = 'none';
-}
-
-// ── Pipeline highlight ──
-function renderPipeline(active) {
-  for (var i = 0; i < 4; i++) {
-    const el = document.getElementById('ps' + i);
-    el.classList.remove('active-step', 'done-step');
-    if (i < active) el.classList.add('done-step');
-    else if (i === active) el.classList.add('active-step');
-  }
-}
-
-// ── Steps ──
-function renderSteps(ai) {
-  document.getElementById('prog-steps').innerHTML = STEPS.map(function(s, i) {
-    const c = i < ai ? 'done' : i === ai ? 'act' : '';
-    const d = i < ai ? '&#x2713;' : '';
-    return '<div class="ps ' + c + '"><div class="ps-dot">' + d + '</div><span>' + s + '</span></div>';
-  }).join('');
-}
-
-// ── Queue (data nyata dari GET /queue?job_id=...) ──
-async function fetchAndRenderQueue(myStatus) {
-  const bmap = {
-    processing: '<span class="stbadge sp"><span class="sd"></span>Sedang Diproses</span>',
-    waiting:    '<span class="stbadge sw"><span class="sd"></span>Menunggu</span>',
-    completed:  '<span class="stbadge sk"><span class="sd"></span>Selesai</span>',
-    error:      '<span class="stbadge se"><span class="sd"></span>Gagal</span>',
-  };
-
-  let data = null;
-  try {
-    const url = jobId ? api('/queue?job_id=' + encodeURIComponent(jobId)) : api('/queue');
-    const res = await fetch(url);
-    data = await res.json();
-  } catch (_) { return; }
-
-  if (!data) return;
-
-  const activeJobs = data.active_jobs || [];
-  const activeCount = (data.waiting || 0) + (data.processing || 0);
-  document.getElementById('q-badge').textContent = activeCount + ' file';
-
-  const rows = [];
-
-  // Buat map job_id → filename dari uploadedJobs untuk pengecekan milik sendiri
-  const myJobMap = {};
-  uploadedJobs.forEach(function(j) { myJobMap[j.job_id] = j.filename; });
-
-  // ── Render tiap baris antrian ──
-  activeJobs.forEach(function(job, idx) {
-    const isMine = !!(job.is_current_user === true || myJobMap[job.job_id]);
-    const isProc = job.status === 'processing';
-    const pos    = isProc ? null : job.queue_position;
-    const posLabel = isProc ? '▶' : ('#' + pos);
-
-    // Nomor posisi
-    const numClass = isProc ? 'q-num proc' : (isMine ? 'q-num me' : 'q-num');
-
-    // Nama file: nama asli jika milik user, "File User Lain" jika bukan
-    const displayName = isMine ? (myJobMap[job.job_id] || job.filename || 'File Anda') : 'File User Lain';
-
-    // Ukuran file
-    const sizeMb = (typeof job.file_size_mb === 'number') ? job.file_size_mb.toFixed(2) + ' MB' : '';
-
-    // Tag milikmu
-    const meTag = isMine
-      ? '<span class="q-me-tag">&#9654; Milikmu</span>'
-      : '';
-
-    rows.push(
-      '<div class="q-row' + (isMine ? ' mine' : '') + '">' +
-        '<div class="' + numClass + '">' + posLabel + '</div>' +
-        '<div class="q-inf">' +
-          '<div class="q-name-row">' +
-            '<span class="q-name">' + escHtml(displayName) + '</span>' +
-            meTag +
-          '</div>' +
-          '<div class="q-meta">' + sizeMb + '</div>' +
-        '</div>' +
-        (bmap[job.status] || '') +
-        (isMine && (job.status === 'waiting' || job.status === 'processing')
-          ? '<button class="btn-cancel-row" data-jobid="' + escHtml(job.job_id) + '" ' +
-              'onclick="cancelQueueRow(this)" title="Batalkan file ini">' +
-              '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:10px;height:10px">' +
-                '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' +
-              '</svg>' +
-              ' Batalkan' +
-            '</button>'
-          : '') +
-      '</div>'
-    );
-  });
-
-  // ── Ringkasan posisi user (jika ada data dari backend) ──
-  const myPos       = data.my_position;
-  const myAhead     = data.my_jobs_ahead;
-  const myAheadSize = data.my_queue_ahead_size_mb;
-
-  // Tampilkan ringkasan hanya jika user sedang menunggu (bukan sedang diproses)
-  if (jobId && typeof myPos === 'number' && myStatus === 'waiting') {
-    const summaryBg  = myAhead === 0 ? 'var(--success-bg)' : 'var(--primary-light)';
-    const summaryBdr = myAhead === 0 ? '#A7F3D0' : '#BFDBFE';
-    const summaryClr = myAhead === 0 ? '#059669' : 'var(--primary)';
-
-    let summaryLines = [];
-    summaryLines.push('<strong>Posisi Anda: #' + myPos + '</strong>');
-    if (myAhead > 0) {
-      summaryLines.push(myAhead + ' file sebelum giliran Anda');
-      summaryLines.push('Total ukuran sebelum Anda: ' + (myAheadSize || 0).toFixed(2) + ' MB');
-    } else {
-      summaryLines.push('Anda berikutnya - worker sedang memproses');
-    }
-
-    rows.push(
-      '<div style="margin:6px 14px 8px;padding:11px 15px;background:' + summaryBg + ';' +
-        'border:1px solid ' + summaryBdr + ';border-radius:9px;' +
-        'font-size:12.5px;color:' + summaryClr + ';line-height:1.8">' +
-        summaryLines.join('<br>') +
-      '</div>'
-    );
-  } else if (jobId && myStatus === 'processing') {
-    rows.push(
-      '<div style="margin:6px 14px 8px;padding:11px 15px;background:var(--primary-light);' +
-        'border:1px solid #BFDBFE;border-radius:9px;' +
-        'font-size:12.5px;color:var(--primary);line-height:1.8">' +
-        '<strong>File Anda sedang diproses</strong><br>' +
-        'Worker aktif - pantau progress di atas' +
-      '</div>'
-    );
-  }
-
-  // Jika antrian kosong
-  if (activeJobs.length === 0) {
-    rows.push(
-      '<div style="padding:20px;text-align:center;font-size:13px;color:var(--light)">' +
-        'Antrian kosong' +
-      '</div>'
-    );
-  }
-
-  document.getElementById('q-list').innerHTML = rows.join('');
-}
-
-// ── Helper: escape HTML ──
-function escHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-// ── handleStatusOnce: log hanya saat status berubah ──
-function handleStatusOnce(status) {
-  if (status === lastStatus) return;
-  lastStatus = status;
-
-  if (status === 'waiting') {
-    addLog('[INFO] File berhasil diupload', 'i');
-    addLog('[INFO] Job ID diterima: ' + jobId, 'i');
-    addLog('[INFO] Menunggu dalam antrian…', 'i');
-    renderSteps(0);
-    renderPipeline(0);
-  } else if (status === 'processing') {
-    addLog('[INFO] Worker mulai memproses', 'i');
-    renderPipeline(1);
-  } else if (status === 'completed') {
-    addLog('[SUCCESS] Proses selesai ✅', 'ok');
-    renderSteps(STEPS.length);
-    renderPipeline(4);
-  } else if (status === 'error') {
-    addLog('[ERROR] Terjadi kesalahan saat memproses file', 'e');
-    renderPipeline(-1);
-  }
-}
-
-// ── Tampilkan pesan error compress dari backend ──
-function handleCompressError(data) {
-  const msg = data.message || data.error || null;
-  if (!msg) return;
-  const isCompressErr = msg.indexOf('iLovePDF') !== -1 || msg.indexOf('kompres') !== -1 || msg.indexOf('Ukuran PDF masih') !== -1;
-  if (isCompressErr) {
-    addLog('[ERROR] ' + msg, 'e');
-    document.getElementById('prog-label').textContent = msg;
-  }
-}
-
-// ── applyBackendData: terapkan progress + stage langsung dari backend ──
-function applyBackendData(data) {
-  const status = data.status;
-  const progress = (typeof data.progress === 'number') ? data.progress : null;
-  const stage = data.stage || null;
-
-  // Terapkan progress dari backend (hanya jika ada)
-  if (progress !== null) {
-    const compressStages = ['Memeriksa ukuran PDF', 'Kompres PDF otomatis', 'Kompres selesai'];
-    const isCompress = stage && compressStages.indexOf(stage) !== -1;
-    const label = stage
-      ? (isCompress ? '🗜️ ' + stage : stage)
-      : (
-          status === 'waiting'    ? 'Menunggu dalam antrian…' :
-          status === 'processing' ? 'Sedang memproses…' :
-          status === 'completed'  ? 'Selesai!' :
-          status === 'error'      ? 'Gagal' : 'Memproses…'
-        );
-    setProgress(progress, label);
-  } else {
-    // Tidak ada progress dari backend - set label saja tanpa mengubah angka
-    if (stage) {
-      const compressStages = ['Memeriksa ukuran PDF', 'Kompres PDF otomatis', 'Kompres selesai'];
-      const isCompress = compressStages.indexOf(stage) !== -1;
-      document.getElementById('prog-label').textContent = isCompress ? '🗜️ ' + stage : stage;
-    }
-  }
-
-  // Log stage hanya jika berubah
-  if (stage && stage !== lastStage) {
-    lastStage = stage;
-
-    // Deteksi stage kompres otomatis & tampilkan log khusus
-    if (stage === 'Memeriksa ukuran PDF') {
-      addLog('[KOMPRES] 🔍 ' + stage, 'c');
-      // Tampilkan ukuran file asli jika tersedia
-      if (typeof data.original_size_mb === 'number') {
-        addLog('[KOMPRES] Ukuran asli: ' + data.original_size_mb.toFixed(2) + ' MB', 'c');
-      }
-    } else if (stage === 'Kompres PDF otomatis') {
-      addLog('[KOMPRES] 🗜️ ' + stage, 'c');
-      if (typeof data.compress_attempt === 'number') {
-        addLog('[KOMPRES] Percobaan kompres ke-' + data.compress_attempt, 'c');
-      }
-    } else if (stage === 'Kompres selesai') {
-      addLog('[KOMPRES] ✅ ' + stage, 'c');
-      if (typeof data.compressed_size_mb === 'number') {
-        addLog('[KOMPRES] Ukuran hasil kompres: ' + data.compressed_size_mb.toFixed(2) + ' MB', 'c');
-      }
-      if (typeof data.compress_attempt === 'number') {
-        addLog('[KOMPRES] Total percobaan: ' + data.compress_attempt, 'c');
-      }
-    } else {
-      addLog('[INFO] ' + stage, 'i');
-    }
-  }
-
-  // Pipeline visual berdasarkan progress
-  if (status === 'processing' && progress !== null) {
-    if (progress < 30)       renderPipeline(0);
-    else if (progress < 55)  renderPipeline(1);
-    else if (progress < 80)  renderPipeline(2);
-    else                     renderPipeline(3);
-
-    // Steps visual berdasarkan progress
-    const si = Math.min(Math.floor(progress / (100 / STEPS.length)), STEPS.length - 1);
-    renderSteps(si);
-  }
-}
-
-// ── Polling GET /status/<job_id> setiap 2 detik ──
-function startPolling() {
-  if (pollIv) clearInterval(pollIv);
-  const pollingForJobId = jobId; // rekam job yang sedang dipolling
-  pollIv = setInterval(async function() {
-    // Jika job yang dipolling sudah tidak aktif (diganti atau di-cancel), stop
-    if (jobId !== pollingForJobId) { clearInterval(pollIv); pollIv = null; return; }
-    // Jika sedang dibatalkan untuk job ini, biarkan cancelProcess yang handle
-    if (cancelRequested === pollingForJobId) return;
-    try {
-      const res = await fetch(api('/status/' + pollingForJobId));
-      const data = await res.json();
-
-      // Guard setelah await: job bisa berubah selama request berlangsung
-      if (jobId !== pollingForJobId) return;
-      if (cancelRequested === pollingForJobId) return;
-
-      // Terapkan progress & stage dari backend (selalu, setiap poll)
-      applyBackendData(data);
-
-      // Log & UI one-shot per perubahan status
-      handleStatusOnce(data.status);
-
-      saveSession(); // simpan state terkini setiap poll
-
-      if (data.status === 'waiting' || data.status === 'processing') {
-        fetchAndRenderQueue(data.status);
-      } else if (data.status === 'completed') {
-        fetchAndRenderQueue('completed');
-        stopPolling();
-        setTimeout(showResult, 700);
-      } else if (data.status === 'error') {
-        fetchAndRenderQueue('error');
-        handleCompressError(data);
-        stopPolling();
+    if (jobId) {
+      // Ada job yang sedang/baru selesai dipantau — recover
+      try {
+        var r = await fetch(api('/status/' + encodeURIComponent(jobId)), { signal: AbortSignal.timeout(5000) });
+        var d = await r.json();
+        if (d.status === 'waiting' || d.status === 'processing') {
+          openGenModal(true);
+          applyBackendData(d);
+          startPolling();
+          toast('Sesi dilanjutkan setelah refresh', 'info');
+        } else if (d.status === 'completed') {
+          openGenModal(true);
+          showGenDone();
+        } else {
+          jobId = null;
+          saveSession();
+        }
+      } catch (_) {
+        jobId = null;
         saveSession();
       }
-    } catch (_) {}
+    }
+  } else {
+    addUnitBlock();
+  }
+}
+
+async function loadInitialData() {
+  await loadTowers();
+  for (var i = 0; i < unitBlocks.length; i++) {
+    await ensureUnitsLoaded(unitBlocks[i].tower);
+  }
+  renderAllUnits();
+}
+
+// ══════════════════════════════════════════════
+//  DATA TOWER & UNIT DARI BACKEND
+// ══════════════════════════════════════════════
+async function loadTowers() {
+  // Daftar tower bersifat tetap (hardcode), tidak diambil dari backend.
+  return TOWERS;
+}
+
+async function ensureUnitsLoaded(tower) {
+  // Daftar unit bersifat tetap (hardcode), tidak diambil dari backend.
+  if (!tower) return [];
+  if (TOWER_UNITS_CACHE[tower]) return TOWER_UNITS_CACHE[tower];
+  var units = TOWER_UNITS[tower] || [];
+  TOWER_UNITS_CACHE[tower] = units;
+  return units;
+}
+
+// ══════════════════════════════════════════════
+//  UNIT BLOCK / AREA / DEFECT CRUD
+// ══════════════════════════════════════════════
+async function addUnitBlock() {
+  var today = new Date().toISOString().split('T')[0];
+  var defaultTower = TOWERS[0] ? TOWERS[0].value : '';
+  var ub = { id: uid(), tower: defaultTower, unit: '', date: today, areas: [] };
+  unitBlocks.push(ub);
+  if (defaultTower) await ensureUnitsLoaded(defaultTower);
+  addArea(ub.id, true);
+  renderAllUnits();
+  saveSession();
+}
+
+function addArea(ubId, skipRender) {
+  var ub = findUb(ubId);
+  if (!ub) return;
+  ub.areas.push({ id: uid(), areaName: '', defects: [] });
+  if (!skipRender) { renderAllUnits(); saveSession(); }
+}
+
+function removeArea(ubId, areaId) {
+  var ub = findUb(ubId);
+  if (!ub) return;
+  ub.areas = ub.areas.filter(function(a) { return a.id !== areaId; });
+  renderAllUnits();
+  saveSession();
+}
+
+async function setTower(ubId, val) {
+  var ub = findUb(ubId);
+  if (!ub) return;
+  ub.tower = val;
+  ub.unit = '';
+  await ensureUnitsLoaded(val);
+  patchUnitSelect(ub);
+  saveSession();
+}
+
+function setUnit(ubId, val) {
+  var ub = findUb(ubId);
+  if (ub) ub.unit = val;
+  saveSession();
+}
+
+function setDate(ubId, val) {
+  var ub = findUb(ubId);
+  if (ub) { ub.date = val; }
+  var el = document.getElementById('date-text-' + ubId);
+  if (el) el.textContent = val ? formatTanggal(val) : 'Pilih tanggal...';
+  saveSession();
+}
+
+function setAreaName(ubId, areaId, val) {
+  var ub = findUb(ubId);
+  if (!ub) return;
+  var area = findArea(ub, areaId);
+  if (area) area.areaName = val;
+  var cells = document.querySelectorAll('#tbody-' + areaId + ' .td-area-text');
+  for (var i = 0; i < cells.length; i++) {
+    cells[i].innerHTML = val ? escHtml(val) : '<span style="color:var(--text-secondary);font-style:italic;">&#8212;</span>';
+  }
+  saveSession();
+}
+
+function findUb(ubId) {
+  for (var i = 0; i < unitBlocks.length; i++) {
+    if (unitBlocks[i].id === ubId) return unitBlocks[i];
+  }
+  return null;
+}
+
+function findArea(ub, areaId) {
+  for (var i = 0; i < ub.areas.length; i++) {
+    if (ub.areas[i].id === areaId) return ub.areas[i];
+  }
+  return null;
+}
+
+function findDefect(area, defectId) {
+  for (var i = 0; i < area.defects.length; i++) {
+    if (area.defects[i].id === defectId) return area.defects[i];
+  }
+  return null;
+}
+
+// ══════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════
+function renderAllUnits() {
+  var container = document.getElementById('unit-blocks-container');
+  container.innerHTML = '';
+  for (var ui = 0; ui < unitBlocks.length; ui++) {
+    var ub = unitBlocks[ui];
+    var div = document.createElement('div');
+    div.className = 'unit-block';
+    div.id = 'ub-block-' + ub.id;
+
+    var towerOptions = '';
+    if (TOWERS.length === 0) {
+      towerOptions = '<option value="" class="skeleton-opt">Memuat tower...</option>';
+    } else {
+      for (var t = 0; t < TOWERS.length; t++) {
+        towerOptions += '<option value="' + escHtml(TOWERS[t].value) + '"' + (ub.tower === TOWERS[t].value ? ' selected' : '') + '>' + escHtml(TOWERS[t].label) + '</option>';
+      }
+    }
+
+    var units = TOWER_UNITS_CACHE[ub.tower] || [];
+    var unitOptions = '<option value="">-- Pilih Unit --</option>';
+    if (ub.tower && !TOWER_UNITS_CACHE[ub.tower]) {
+      unitOptions = '<option value="" class="skeleton-opt">Memuat unit...</option>';
+    } else {
+      for (var k = 0; k < units.length; k++) {
+        unitOptions += '<option value="' + escHtml(units[k]) + '"' + (ub.unit === units[k] ? ' selected' : '') + '>' + escHtml(units[k]) + '</option>';
+      }
+    }
+
+    var areasHtml = '';
+    for (var ai = 0; ai < ub.areas.length; ai++) {
+      areasHtml += renderAreaHTML(ub, ub.areas[ai]);
+    }
+
+    div.innerHTML =
+      '<div class="unit-block-body">' +
+        '<div class="form-row" style="margin-bottom:16px;">' +
+          '<div class="form-group"><label>Tower</label>' +
+            '<select id="tower-sel-' + ub.id + '" onchange="setTower(\'' + ub.id + '\', this.value)">' + towerOptions + '</select>' +
+          '</div>' +
+          '<div class="form-group"><label>Unit</label>' +
+            '<select id="unit-sel-' + ub.id + '" onchange="setUnit(\'' + ub.id + '\', this.value)">' + unitOptions + '</select>' +
+          '</div>' +
+          '<div class="form-group"><label>Tanggal</label>' +
+            '<div class="date-display-wrap">' +
+              '<div class="date-display-text" onclick="document.getElementById(\'date-input-' + ub.id + '\').showPicker ? document.getElementById(\'date-input-' + ub.id + '\').showPicker() : document.getElementById(\'date-input-' + ub.id + '\').click()">' +
+                '<span id="date-text-' + ub.id + '">' + (ub.date ? formatTanggal(ub.date) : 'Pilih tanggal...') + '</span>' +
+                '<span style="display:flex;align-items:center;gap:6px;margin-left:auto;">' +
+                  '<span class="date-edit-badge"><i class="bi bi-pencil-fill"></i></span>' +
+                  '<i class="bi bi-calendar3" style="color:var(--text-secondary);font-size:14px;"></i>' +
+                '</span>' +
+              '</div>' +
+              '<input type="date" id="date-input-' + ub.id + '" value="' + ub.date + '" onchange="setDate(\'' + ub.id + '\', this.value)">' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div id="areas-' + ub.id + '">' + areasHtml + '</div>' +
+        '<div style="margin-top:10px;">' +
+          '<button class="btn-add-area" onclick="addArea(\'' + ub.id + '\')">' +
+            '<i class="bi bi-plus"></i> Tambah Area' +
+          '</button>' +
+        '</div>' +
+      '</div>';
+    container.appendChild(div);
+  }
+
+  for (var ui2 = 0; ui2 < unitBlocks.length; ui2++) {
+    var ub2 = unitBlocks[ui2];
+    for (var ai2 = 0; ai2 < ub2.areas.length; ai2++) {
+      (function(ubId, areaId, areaObj) {
+        var fc = document.getElementById('fp-container-' + areaId);
+        if (fc) fc.onclick = function(e) { onFloorplanClick(e, ubId, areaId); };
+        initFloorplanImage(ubId, areaObj);
+      })(ub2.id, ub2.areas[ai2].id, ub2.areas[ai2]);
+    }
+  }
+}
+
+function renderAreaHTML(ub, area) {
+  var hasDefects = area.defects.length > 0;
+  var rows = '';
+  var cards = '';
+  for (var i = 0; i < area.defects.length; i++) {
+    rows += renderDefectRow(ub.id, area, area.defects[i], i);
+    cards += renderDefectCard(ub.id, area, area.defects[i], i);
+  }
+  var removeBtnHtml = ub.areas.length > 1
+    ? '<button onclick="removeArea(\'' + ub.id + '\',\'' + area.id + '\')" style="background:none;border:none;color:var(--danger);font-size:15px;cursor:pointer;" title="Hapus area"><i class="bi bi-x-circle"></i></button>'
+    : '';
+  var emptyHtml = !hasDefects
+    ? '<div class="empty-state"><i class="bi bi-clipboard-x"></i><h3>Belum ada defect</h3><p>Klik tombol di bawah untuk menambah</p></div>'
+    : '';
+  return '<div class="area-block" id="area-block-' + area.id + '">' +
+    '<div class="area-block-header">' +
+      '<input class="area-name-input" id="area-name-' + area.id + '" type="text" value="' + escHtml(area.areaName) + '" placeholder="Ketik nama area..." enterkeyhint="done" oninput="setAreaName(\'' + ub.id + '\',\'' + area.id + '\',this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur();}">' +
+      removeBtnHtml +
+    '</div>' +
+    '<div class="area-block-body">' +
+      '<div class="floorplan-wrap" style="padding:12px 12px 6px;">' + renderFloorplanHTML(ub.id, area) + '</div>' +
+      '<div class="table-wrap">' +
+        '<table><thead><tr>' +
+          '<th style="width:40px;">No</th>' +
+          '<th>Deskripsi Pekerjaan</th>' +
+          '<th style="width:80px;">Area</th>' +
+          '<th style="width:90px;">Foto</th>' +
+          '<th style="width:120px;">Marker</th>' +
+          '<th style="width:48px;"></th>' +
+        '</tr></thead>' +
+        '<tbody id="tbody-' + area.id + '">' + rows + '</tbody>' +
+        '</table>' +
+      '</div>' +
+      '<div class="defect-card" id="dcards-' + area.id + '">' + cards + '</div>' +
+      emptyHtml +
+      '<button class="btn-add-defect" onclick="addDefect(\'' + ub.id + '\',\'' + area.id + '\')">' +
+        '<i class="bi bi-plus-circle-fill"></i> Tambah Defect' +
+      '</button>' +
+    '</div>' +
+  '</div>';
+}
+
+function renderDefectRow(ubId, area, d, i) {
+  var color = MARKER_COLORS[i % MARKER_COLORS.length];
+  var circle = MARKER_CIRCLES[i] || (i + 1);
+  var areaLabel = area.areaName
+    ? escHtml(area.areaName)
+    : '<span style="color:var(--text-secondary);font-style:italic;">&#8212;</span>';
+
+  var fotoCell;
+  if (d.foto) {
+    var isOffline = !!d.fotoOffline;
+    fotoCell = '<div class="foto-cell-filled">' +
+      '<div class="foto-thumb-wrap' + (isOffline ? ' is-offline' : '') + '">' +
+        '<img class="foto-thumb" src="' + d.foto + '" onclick="openPhotoModal(\'' + d.id + '\')" title="Klik untuk zoom">' +
+        '<label class="foto-btn-change" title="Ganti foto"><i class="bi bi-arrow-repeat"></i>' +
+          '<input type="file" accept="image/*" onchange="changeFoto(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\',this)">' +
+        '</label>' +
+        '<button class="foto-btn-x" onclick="removeFoto(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\')" title="Hapus foto"><i class="bi bi-x"></i></button>' +
+      '</div></div>';
+  } else if (d.fotoUploading) {
+    fotoCell = '<div class="foto-cell-empty"><span class="foto-add-label"><i class="bi bi-arrow-repeat" style="animation:spin 1s linear infinite;"></i> Mengunggah...</span></div>';
+  } else {
+    fotoCell = '<div class="foto-cell-empty">' +
+      '<label class="foto-add-label"><i class="bi bi-image"></i> Pilih Foto' +
+        '<input type="file" accept="image/*" onchange="changeFoto(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\',this)">' +
+      '</label></div>';
+  }
+
+  var markerBtn;
+  if (d.marker) {
+    markerBtn = '<button class="btn-marker has-marker" onclick="startPick(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\')">' +
+      '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:4px;background:' + color + ';color:#fff;font-size:10px;font-weight:800;">' + circle + '</span> Ubah' +
+      '</button>';
+  } else {
+    markerBtn = '<button class="btn-marker" onclick="startPick(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\')">' +
+      '<i class="bi bi-geo-alt"></i> Pilih Titik' +
+      '</button>';
+  }
+
+  return '<tr data-defect-id="' + d.id + '">' +
+    '<td class="td-no">' + (i + 1) + '</td>' +
+    '<td class="td-desc"><input type="text" id="desc-' + d.id + '" value="' + escHtml(d.desc) + '" placeholder="Masukkan deskripsi defect" enterkeyhint="done" oninput="updateDesc(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\',this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur();}"></td>' +
+    '<td class="td-area"><div class="td-area-text">' + areaLabel + '</div></td>' +
+    '<td>' + fotoCell + '</td>' +
+    '<td>' + markerBtn + '</td>' +
+    '<td><button class="btn-danger-sm" onclick="deleteDefect(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\')"><i class="bi bi-trash-fill"></i></button></td>' +
+  '</tr>';
+}
+
+function renderDefectCard(ubId, area, d, i) {
+  var color = MARKER_COLORS[i % MARKER_COLORS.length];
+  var circle = MARKER_CIRCLES[i] || (i + 1);
+  var areaLabel = area.areaName || '<span style="color:var(--text-secondary);font-style:italic;">—</span>';
+
+  var fotoCell;
+  if (d.foto) {
+    var isOffline2 = !!d.fotoOffline;
+    fotoCell = '<div class="foto-cell-filled">' +
+      '<div class="foto-thumb-wrap' + (isOffline2 ? ' is-offline' : '') + '">' +
+        '<img class="foto-thumb" src="' + d.foto + '" onclick="openPhotoModal(\'' + d.id + '\')" title="Klik untuk zoom">' +
+        '<label class="foto-btn-change" title="Ganti foto"><i class="bi bi-arrow-repeat"></i>' +
+          '<input type="file" accept="image/*" onchange="changeFoto(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\',this)">' +
+        '</label>' +
+        '<button class="foto-btn-x" onclick="removeFoto(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\')" title="Hapus foto"><i class="bi bi-x"></i></button>' +
+      '</div></div>';
+  } else if (d.fotoUploading) {
+    fotoCell = '<span class="foto-add-label"><i class="bi bi-arrow-repeat" style="animation:spin 1s linear infinite;"></i> Mengunggah...</span>';
+  } else {
+    fotoCell = '<label class="foto-add-label"><i class="bi bi-image"></i> Pilih Foto' +
+      '<input type="file" accept="image/*" onchange="changeFoto(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\',this)">' +
+      '</label>';
+  }
+
+  var markerBtn;
+  if (d.marker) {
+    markerBtn = '<button class="btn-marker has-marker" onclick="startPick(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\')">' +
+      '<span style="display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border-radius:4px;background:' + color + ';color:#fff;font-size:10px;font-weight:800;">' + circle + '</span> Ubah Marker' +
+      '</button>';
+  } else {
+    markerBtn = '<button class="btn-marker" onclick="startPick(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\')">' +
+      '<i class="bi bi-geo-alt"></i> Pilih Titik' +
+      '</button>';
+  }
+
+  return '<div class="dc-item" data-defect-id="' + d.id + '">' +
+    '<div class="dc-header">' +
+      '<span class="dc-num">Defect #' + (i + 1) + '</span>' +
+      '<button class="btn-danger-sm" onclick="deleteDefect(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\')"><i class="bi bi-trash-fill"></i></button>' +
+    '</div>' +
+    '<div class="dc-body">' +
+      '<div class="dc-row">' +
+        '<span class="dc-label">Deskripsi Pekerjaan</span>' +
+        '<input class="dc-input" type="text" id="dcdesc-' + d.id + '" value="' + escHtml(d.desc) + '" placeholder="Masukkan deskripsi defect" enterkeyhint="done" oninput="updateDesc(\'' + ubId + '\',\'' + area.id + '\',\'' + d.id + '\',this.value)" onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur();}">' +
+      '</div>' +
+      '<div class="dc-row">' +
+        '<span class="dc-label">Area</span>' +
+        '<span style="font-size:13px;font-weight:500;color:var(--text-dark);">' + areaLabel + '</span>' +
+      '</div>' +
+      '<div class="dc-actions">' +
+        fotoCell +
+        markerBtn +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+// ══════════════════════════════════════════════
+//  FLOORPLAN (HARDCODED - GITHUB RAW, OFFLINE-SAFE)
+// ══════════════════════════════════════════════
+var FLOORPLAN_BASE_URL = 'https://raw.githubusercontent.com/muhamadqosas/pdf-processing-system/main/';
+
+function getFloorplanUrl(ub) {
+  if (!ub || !ub.unit) {
+    console.warn('[Floorplan] Data unit tidak valid:', ub);
+    return '';
+  }
+
+  var match = String(ub.unit).match(/(\d+)/);
+  if (!match) {
+    console.warn('[Floorplan] Tidak ditemukan nomor unit pada:', ub.unit);
+    return '';
+  }
+
+  var num = match[1];
+
+  // Pastikan selalu format 2 digit (1 -> 01, 9 -> 09, 10 -> 10, 18 -> 18, 29 -> 29)
+  if (num.length < 2) num = '0' + num;
+
+  // Bersihkan dari spasi / karakter tak terduga (defensif)
+  num = num.trim().replace(/\s+/g, '');
+
+  var url = FLOORPLAN_BASE_URL + num + '.jpg';
+
+  console.log('[Floorplan] Unit "' + ub.unit + '" -> URL denah: ' + url);
+
+  return url;
+}
+
+// Fallback ke PNG / subfolder jika .jpg di root gagal dimuat
+function getFloorplanFallbackUrls(ub) {
+  if (!ub || !ub.unit) return [];
+
+  var match = String(ub.unit).match(/(\d+)/);
+  if (!match) return [];
+
+  var num = match[1];
+  if (num.length < 2) num = '0' + num;
+  num = num.trim().replace(/\s+/g, '');
+
+  return [
+    FLOORPLAN_BASE_URL + num + '.png',
+    FLOORPLAN_BASE_URL + 'floorplan/' + num + '.jpg',
+    FLOORPLAN_BASE_URL + 'floorplan/' + num + '.png',
+    FLOORPLAN_BASE_URL + 'denah/' + num + '.jpg',
+    FLOORPLAN_BASE_URL + 'denah/' + num + '.png'
+  ];
+}
+
+// Pasang handler load/error + fallback otomatis pada <img> denah
+function attachFloorplanHandlers(img, ub, fallbackEl) {
+  if (!img || !ub) return;
+
+  var triedUrls = [getFloorplanUrl(ub)].concat(getFloorplanFallbackUrls(ub));
+  var idx = 0;
+
+  function tryNext() {
+    if (idx >= triedUrls.length) {
+      console.error('[Floorplan] Semua URL gagal untuk unit "' + ub.unit + '". Menampilkan placeholder.');
+      img.style.display = 'none';
+      if (fallbackEl) fallbackEl.style.display = 'flex';
+      return;
+    }
+    var url = triedUrls[idx];
+    idx++;
+    console.log('[Floorplan] Mencoba memuat: ' + url);
+    img.src = url;
+  }
+
+  img.onload = function() {
+    console.log('[Floorplan] BERHASIL dimuat: ' + img.src);
+    img.style.display = 'block';
+    if (fallbackEl) fallbackEl.style.display = 'none';
+    // Reposisi marker di popup setelah gambar termuat (naturalWidth/Height tersedia)
+    if (typeof repositionFpMarkers === 'function') repositionFpMarkers();
+  };
+
+  img.onerror = function() {
+    console.warn('[Floorplan] GAGAL dimuat (mungkin 404/CORS): ' + img.src);
+    tryNext();
+  };
+
+  tryNext();
+}
+
+function renderFloorplanHTML(ubId, area) {
+  var ub = findUb(ubId);
+  var markersHtml = '';
+  for (var i = 0; i < area.defects.length; i++) {
+    var d = area.defects[i];
+    if (!d.marker) continue;
+    var color = MARKER_COLORS[i % MARKER_COLORS.length];
+    var circle = MARKER_CIRCLES[i] || (i + 1);
+    markersHtml += '<div class="defect-marker" style="left:' + d.marker.x + '%;top:' + d.marker.y + '%;background:' + color + ';" title="' + escHtml(d.desc || 'Defect #' + (i+1)) + '">' + circle + '</div>';
+  }
+  var fallbackHtml = '<div class="floorplan-fallback" id="fp-fallback-' + area.id + '" style="display:none;width:100%;aspect-ratio:700/420;align-items:center;justify-content:center;background:#F0F6FF;color:var(--text-secondary);font-size:13px;font-weight:600;text-align:center;padding:16px;"><span><i class="bi bi-image" style="font-size:22px;display:block;margin-bottom:6px;"></i>Denah unit tidak tersedia</span></div>';
+  // src diisi via JS (attachFloorplanHandlers) agar bisa fallback otomatis & logging konsisten
+  var imgHtml = '<img class="floorplan-image" id="fp-img-' + area.id + '" alt="Denah Unit" crossorigin="anonymous" style="display:none;">' + fallbackHtml;
+  return '<div class="floorplan-container" id="fp-container-' + area.id + '">' +
+    imgHtml +
+    '<div class="markers-layer" id="ml-' + area.id + '">' + markersHtml + '</div>' +
+  '</div>';
+}
+
+// Dipanggil setelah HTML floorplan disisipkan ke DOM, untuk memuat gambar denah
+function initFloorplanImage(ubId, area) {
+  var ub = findUb(ubId);
+  var img = document.getElementById('fp-img-' + area.id);
+  var fallbackEl = document.getElementById('fp-fallback-' + area.id);
+  if (!img) return;
+  if (!ub || !ub.unit) {
+    img.style.display = 'none';
+    if (fallbackEl) fallbackEl.style.display = 'flex';
+    return;
+  }
+  attachFloorplanHandlers(img, ub, fallbackEl);
+}
+
+// ══════════════════════════════════════════════
+//  DEFECT CRUD
+// ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+//  PATCH HELPERS — update DOM surgical tanpa full re-render
+// ══════════════════════════════════════════════
+
+// Re-render hanya bagian tbody + dcards + empty-state satu area
+function patchAreaDefects(ub, area) {
+  var tbody = document.getElementById('tbody-' + area.id);
+  var dcards = document.getElementById('dcards-' + area.id);
+  var areaBlock = document.getElementById('area-block-' + area.id);
+  if (!tbody || !dcards || !areaBlock) { renderAllUnits(); return; }
+
+  var rows = '';
+  var cards = '';
+  for (var i = 0; i < area.defects.length; i++) {
+    rows += renderDefectRow(ub.id, area, area.defects[i], i);
+    cards += renderDefectCard(ub.id, area, area.defects[i], i);
+  }
+  tbody.innerHTML = rows;
+  dcards.innerHTML = cards;
+
+  // Update empty-state: elemen setelah dcards sebelum btn-add-defect
+  var existingEmpty = areaBlock.querySelector('.empty-state');
+  if (area.defects.length === 0) {
+    if (!existingEmpty) {
+      var emptyDiv = document.createElement('div');
+      emptyDiv.className = 'empty-state';
+      emptyDiv.innerHTML = '<i class="bi bi-clipboard-x"></i><h3>Belum ada defect</h3><p>Klik tombol di bawah untuk menambah</p>';
+      var addBtn = areaBlock.querySelector('.btn-add-defect');
+      if (addBtn) areaBlock.querySelector('.area-block-body').insertBefore(emptyDiv, addBtn);
+    }
+  } else {
+    if (existingEmpty) existingEmpty.parentNode.removeChild(existingEmpty);
+  }
+
+  // Update marker overlay di floorplan
+  var markersLayer = document.getElementById('ml-' + area.id);
+  if (markersLayer) markersLayer.innerHTML = buildMarkersHTML(ub.id, area);
+}
+
+// Re-render hanya options dropdown Unit satu UB
+function patchUnitSelect(ub) {
+  var sel = document.getElementById('unit-sel-' + ub.id);
+  if (!sel) return;
+  var units = TOWER_UNITS_CACHE[ub.tower] || [];
+  var html = '<option value="">-- Pilih Unit --</option>';
+  for (var k = 0; k < units.length; k++) {
+    html += '<option value="' + escHtml(units[k]) + '"' + (ub.unit === units[k] ? ' selected' : '') + '>' + escHtml(units[k]) + '</option>';
+  }
+  sel.innerHTML = html;
+}
+
+// Bangun HTML marker overlay (dipakai di patchAreaDefects & konfirmasi marker)
+function buildMarkersHTML(ubId, area) {
+  var html = '';
+  for (var i = 0; i < area.defects.length; i++) {
+    var d = area.defects[i];
+    if (!d.marker) continue;
+    var color = MARKER_COLORS[i % MARKER_COLORS.length];
+    var circle = MARKER_CIRCLES[i] || (i + 1);
+    html += '<div class="defect-marker" style="left:' + d.marker.x + '%;top:' + d.marker.y + '%;background:' + color + ';" title="' + escHtml(d.desc || 'Defect #' + (i+1)) + '">' + circle + '</div>';
+  }
+  return html;
+}
+
+function addDefect(ubId, areaId) {
+  var ub = findUb(ubId);
+  if (!ub) return;
+  var area = findArea(ub, areaId);
+  if (!area) return;
+  area.defects.push({ id: uid(), desc: '', foto: null, fotoFileId: null, fotoUploading: false, fotoOffline: false, marker: null });
+  patchAreaDefects(ub, area);
+  saveSession();
+  toast('Defect berhasil ditambahkan', 'success');
+}
+
+function deleteDefect(ubId, areaId, defectId) {
+  var ub = findUb(ubId);
+  if (!ub) return;
+  var area = findArea(ub, areaId);
+  if (!area) return;
+  area.defects = area.defects.filter(function(d) { return d.id !== defectId; });
+  if (pickingInfo && pickingInfo.defectId === defectId) cancelPickModal();
+  patchAreaDefects(ub, area);
+  saveSession();
+  toast('Defect berhasil dihapus', 'warning');
+}
+
+function updateDesc(ubId, areaId, defectId, val) {
+  var ub = findUb(ubId);
+  if (!ub) return;
+  var area = findArea(ub, areaId);
+  if (!area) return;
+  var d = findDefect(area, defectId);
+  if (d) { d.desc = val; saveSession(); }
+}
+
+// ══════════════════════════════════════════════
+//  FLUSH AREA NAMES — pastikan nilai input area
+//  yang sedang diedit sudah tersimpan ke data model
+//  sebelum renderAllUnits() dipanggil (mencegah
+//  kolom Area tampil '-' saat render ulang)
+// ══════════════════════════════════════════════
+function flushAreaNames() {
+  var inputs = document.querySelectorAll('.area-name-input');
+  for (var i = 0; i < inputs.length; i++) {
+    var inp = inputs[i];
+    // id format: area-name-<areaId>
+    var areaId = inp.id.replace('area-name-', '');
+    var val = inp.value;
+    // Cari ub & area dari areaId
+    for (var ui = 0; ui < unitBlocks.length; ui++) {
+      var ub = unitBlocks[ui];
+      for (var ai = 0; ai < ub.areas.length; ai++) {
+        if (ub.areas[ai].id === areaId) {
+          if (ub.areas[ai].areaName !== val) {
+            ub.areas[ai].areaName = val;
+          }
+          break;
+        }
+      }
+    }
+  }
+}
+
+// ══════════════════════════════════════════════
+//  FOTO - upload ke backend (dengan fallback offline base64)
+// ══════════════════════════════════════════════
+
+// Simpan file asli secara sementara (tidak di-serialize ke session)
+var _pendingFotoFiles = {}; // defectId -> File
+
+function readFileAsDataURL(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function(e) { resolve(e.target.result); };
+    reader.onerror = function() { reject(new Error('Gagal membaca file')); };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Update hanya sel foto pada DOM tanpa full re-render (mencegah glitch & scroll ke atas)
+function patchFotoCell(ubId, areaId, d, areaForRender) {
+  var area = areaForRender;
+  // Temukan indeks defect di area untuk warna marker
+  var defectIdx = 0;
+  for (var i = 0; i < area.defects.length; i++) {
+    if (area.defects[i].id === d.id) { defectIdx = i; break; }
+  }
+
+  // Bangun HTML sel foto
+  var fotoHtml;
+  if (d.foto) {
+    fotoHtml = '<div class="foto-cell-filled">' +
+      '<div class="foto-thumb-wrap">' +
+        '<img class="foto-thumb" src="' + d.foto + '" onclick="openPhotoModal(\'' + d.id + '\')" title="Klik untuk zoom">' +
+        '<label class="foto-btn-change" title="Ganti foto"><i class="bi bi-arrow-repeat"></i>' +
+          '<input type="file" accept="image/*" onchange="changeFoto(\'' + ubId + '\',\'' + areaId + '\',\'' + d.id + '\',this)">' +
+        '</label>' +
+        '<button class="foto-btn-x" onclick="removeFoto(\'' + ubId + '\',\'' + areaId + '\',\'' + d.id + '\')" title="Hapus foto"><i class="bi bi-x"></i></button>' +
+      '</div></div>';
+  } else if (d.fotoUploading) {
+    fotoHtml = '<div class="foto-cell-empty"><span class="foto-add-label"><i class="bi bi-arrow-repeat" style="animation:spin 1s linear infinite;"></i> Mengunggah...</span></div>';
+  } else {
+    fotoHtml = '<div class="foto-cell-empty">' +
+      '<label class="foto-add-label"><i class="bi bi-image"></i> Pilih Foto' +
+        '<input type="file" accept="image/*" onchange="changeFoto(\'' + ubId + '\',\'' + areaId + '\',\'' + d.id + '\',this)">' +
+      '</label></div>';
+  }
+
+  // Update table row (desktop)
+  var tr = document.querySelector('#tbody-' + area.id + ' tr[data-defect-id="' + d.id + '"]');
+  if (tr) {
+    var fotoCells = tr.querySelectorAll('td');
+    // sel foto ada di index 3 (No, Desc, Area, Foto, Marker, Hapus)
+    if (fotoCells[3]) fotoCells[3].innerHTML = fotoHtml;
+  }
+
+  // Update card (mobile) — foto ada di dalam .dc-actions (bersama markerBtn)
+  var card = document.querySelector('#dcards-' + area.id + ' [data-defect-id="' + d.id + '"]');
+  if (card) {
+    var dcActions = card.querySelector('.dc-actions');
+    if (dcActions) {
+      // Ganti hanya elemen foto (label atau div foto), bukan markerBtn
+      // Hapus semua child yang bukan btn-marker
+      var toRemove = [];
+      for (var j = 0; j < dcActions.childNodes.length; j++) {
+        var child = dcActions.childNodes[j];
+        if (child.nodeType === 1 && !child.classList.contains('btn-marker')) {
+          toRemove.push(child);
+        }
+      }
+      for (var r = 0; r < toRemove.length; r++) dcActions.removeChild(toRemove[r]);
+      // Insert foto baru di depan
+      var tmp2 = document.createElement('div');
+      tmp2.innerHTML = fotoHtml;
+      while (tmp2.firstChild) dcActions.insertBefore(tmp2.firstChild, dcActions.firstChild);
+    }
+  }
+}
+
+async function changeFoto(ubId, areaId, defectId, input) {
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+
+  var ub = findUb(ubId);
+  if (!ub) return;
+  var area = findArea(ub, areaId);
+  if (!area) return;
+  var d = findDefect(area, defectId);
+  if (!d) return;
+
+  // Baca dulu sebagai base64 agar bisa langsung tampil
+  var dataUrl;
+  try {
+    dataUrl = await readFileAsDataURL(file);
+  } catch (e) {
+    toast('Gagal membaca file gambar', 'warning');
+    return;
+  }
+
+  // Tampilkan preview lokal segera — TANPA re-render seluruh halaman
+  d.fotoUploading = false;
+  d.foto = dataUrl;
+  d.fotoOffline = true;
+  d.fotoFileId = null;
+  _pendingFotoFiles[defectId] = file;
+  patchFotoCell(ubId, areaId, d, area);
+
+  // Coba upload ke backend
+  try {
+    var form = new FormData();
+    form.append('file', file);
+    form.append('defect_id', defectId);
+    var res = await fetch(api('/api/upload-photo'), { method: 'POST', body: form, signal: AbortSignal.timeout(30000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    if (data.success === false) throw new Error(data.message || 'Upload gagal');
+
+    d.fotoFileId = data.file_id || data.id || null;
+    d.foto = data.url || data.file_url || (d.fotoFileId ? api('/api/photo/' + d.fotoFileId) : dataUrl);
+    d.fotoOffline = false;
+    d.fotoUploading = false;
+    delete _pendingFotoFiles[defectId];
+    patchFotoCell(ubId, areaId, d, area);
+    saveSession();
+    toast('Foto berhasil diunggah', 'success');
+  } catch (err) {
+    // Upload gagal → simpan lokal (base64), tidak perlu notif
+    d.fotoOffline = true;
+    d.fotoUploading = false;
+    patchFotoCell(ubId, areaId, d, area);
+    saveSession();
+  }
+}
+
+// Coba upload ulang foto yang masih offline
+async function retryFotoUpload(ubId, areaId, defectId) {
+  var ub = findUb(ubId);
+  if (!ub) return;
+  var area = findArea(ub, areaId);
+  if (!area) return;
+  var d = findDefect(area, defectId);
+  if (!d || !d.foto || !d.fotoOffline) return;
+
+  var file = _pendingFotoFiles[defectId];
+
+  // Jika file tidak ada di memori (misal setelah reload), convert dataUrl ke File
+  if (!file && d.foto && d.foto.startsWith('data:')) {
+    try {
+      var arr = d.foto.split(',');
+      var mime = arr[0].match(/:(.*?);/)[1];
+      var bstr = atob(arr[1]);
+      var n = bstr.length;
+      var u8arr = new Uint8Array(n);
+      for (var i = 0; i < n; i++) u8arr[i] = bstr.charCodeAt(i);
+      file = new File([u8arr], 'photo_' + defectId + '.jpg', { type: mime });
+      _pendingFotoFiles[defectId] = file;
+    } catch (e) {
+      toast('Gagal menyiapkan ulang foto untuk upload', 'warning');
+      return;
+    }
+  }
+
+  if (!file) {
+    toast('File foto tidak ditemukan, pilih ulang foto', 'warning');
+    return;
+  }
+
+  d.fotoUploading = true;
+  patchFotoCell(ubId, areaId, d, area);
+
+  try {
+    var form = new FormData();
+    form.append('file', file);
+    form.append('defect_id', defectId);
+    var res = await fetch(api('/api/upload-photo'), { method: 'POST', body: form, signal: AbortSignal.timeout(30000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    if (data.success === false) throw new Error(data.message || 'Upload gagal');
+
+    d.fotoFileId = data.file_id || data.id || null;
+    d.foto = data.url || data.file_url || (d.fotoFileId ? api('/api/photo/' + d.fotoFileId) : d.foto);
+    d.fotoOffline = false;
+    d.fotoUploading = false;
+    delete _pendingFotoFiles[defectId];
+    patchFotoCell(ubId, areaId, d, area);
+    saveSession();
+    toast('Foto berhasil diunggah ke server', 'success');
+  } catch (err) {
+    d.fotoUploading = false;
+    patchFotoCell(ubId, areaId, d, area);
+    toast('Masih offline — foto tetap tersimpan lokal', 'warning');
+  }
+}
+
+// Auto-retry semua foto offline saat koneksi kembali
+window.addEventListener('online', function() {
+  var found = false;
+  for (var i = 0; i < unitBlocks.length; i++) {
+    var ub = unitBlocks[i];
+    for (var j = 0; j < ub.areas.length; j++) {
+      var area = ub.areas[j];
+      for (var k = 0; k < area.defects.length; k++) {
+        var d = area.defects[k];
+        if (d.fotoOffline && d.foto) {
+          found = true;
+          retryFotoUpload(ub.id, area.id, d.id);
+        }
+      }
+    }
+  }
+  if (found) toast('Koneksi kembali — mencoba upload foto offline...', 'info');
+});
+
+function removeFoto(ubId, areaId, defectId) {
+  var ub = findUb(ubId);
+  if (!ub) return;
+  var area = findArea(ub, areaId);
+  if (!area) return;
+  var d = findDefect(area, defectId);
+  if (d) {
+    d.foto = null;
+    d.fotoFileId = null;
+    d.fotoOffline = false;
+    patchFotoCell(ubId, areaId, d, area);
+    saveSession();
+    toast('Foto dihapus', 'warning');
+  }
+}
+
+function openPhotoModal(defectId) {
+  for (var i = 0; i < unitBlocks.length; i++) {
+    var ub = unitBlocks[i];
+    for (var j = 0; j < ub.areas.length; j++) {
+      var d = findDefect(ub.areas[j], defectId);
+      if (d && d.foto) {
+        document.getElementById('photo-modal-img').src = d.foto;
+        document.getElementById('photo-modal-overlay').classList.add('active');
+        resetPhotoZoom();
+        lockPageZoom();
+        return;
+      }
+    }
+  }
+}
+
+function closePhotoModal() {
+  document.getElementById('photo-modal-overlay').classList.remove('active');
+  resetPhotoZoom();
+  unlockPageZoom();
+}
+
+// ── Kunci zoom halaman saat modal foto aktif, & reset zoom saat ditutup ──
+var _origViewportContent = null;
+function lockPageZoom() {
+  var vp = document.querySelector('meta[name="viewport"]');
+  if (!vp) return;
+  if (_origViewportContent === null) _origViewportContent = vp.getAttribute('content');
+  // Paksa reset skala halaman ke 1 dulu (mengatasi zoom yg "nyangkut"),
+  // lalu kunci agar pinch di dalam modal tidak ikut men-zoom halaman.
+  vp.setAttribute('content', _origViewportContent + ', maximum-scale=1, user-scalable=no');
+  requestAnimationFrame(function() {
+    vp.setAttribute('content', _origViewportContent + ', maximum-scale=1, user-scalable=no');
+  });
+}
+function unlockPageZoom() {
+  var vp = document.querySelector('meta[name="viewport"]');
+  if (!vp || _origViewportContent === null) return;
+  // Reset dulu skala halaman ke 1 (agar saat ditutup tidak perlu zoom-out manual),
+  // baru kembalikan setting viewport semula agar user tetap bisa zoom halaman normal.
+  vp.setAttribute('content', _origViewportContent + ', maximum-scale=1, user-scalable=no');
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      vp.setAttribute('content', _origViewportContent);
+    });
+  });
+}
+
+// ── Photo modal pinch-zoom & pan (tidak mengubah skala halaman) ──
+var pzState = { scale: 1, x: 0, y: 0, startDist: 0, startScale: 1, dragging: false, lastX: 0, lastY: 0, lastTapTime: 0 };
+
+function resetPhotoZoom() {
+  pzState.scale = 1; pzState.x = 0; pzState.y = 0;
+  applyPhotoZoom();
+}
+
+function applyPhotoZoom() {
+  var img = document.getElementById('photo-modal-img');
+  if (!img) return;
+  img.style.transform = 'translate(' + pzState.x + 'px,' + pzState.y + 'px) scale(' + pzState.scale + ')';
+  img.style.transformOrigin = 'center center';
+  img.style.transition = pzState.dragging ? 'none' : 'transform 0.15s ease';
+}
+
+function pzDist(t0, t1) {
+  var dx = t1.clientX - t0.clientX, dy = t1.clientY - t0.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function initPhotoZoomHandlers() {
+  var wrap = document.getElementById('photo-zoom-wrap');
+  if (!wrap) return;
+
+  wrap.addEventListener('touchstart', function(e) {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      pzState.startDist = pzDist(e.touches[0], e.touches[1]);
+      pzState.startScale = pzState.scale;
+    } else if (e.touches.length === 1 && pzState.scale > 1) {
+      pzState.dragging = true;
+      pzState.lastX = e.touches[0].clientX;
+      pzState.lastY = e.touches[0].clientY;
+    }
+  }, { passive: false });
+
+  wrap.addEventListener('touchmove', function(e) {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      var dist = pzDist(e.touches[0], e.touches[1]);
+      var newScale = pzState.startScale * (dist / pzState.startDist);
+      pzState.scale = Math.min(Math.max(newScale, 1), 5);
+      applyPhotoZoom();
+    } else if (e.touches.length === 1 && pzState.dragging) {
+      e.preventDefault();
+      var dx = e.touches[0].clientX - pzState.lastX;
+      var dy = e.touches[0].clientY - pzState.lastY;
+      pzState.x += dx;
+      pzState.y += dy;
+      pzState.lastX = e.touches[0].clientX;
+      pzState.lastY = e.touches[0].clientY;
+      applyPhotoZoom();
+    }
+  }, { passive: false });
+
+  wrap.addEventListener('touchend', function(e) {
+    if (e.touches.length === 0) {
+      pzState.dragging = false;
+      if (pzState.scale <= 1) { pzState.scale = 1; pzState.x = 0; pzState.y = 0; applyPhotoZoom(); }
+
+      // Double-tap untuk reset / zoom 2x
+      var now = Date.now();
+      if (now - pzState.lastTapTime < 300) {
+        if (pzState.scale > 1) {
+          pzState.scale = 1; pzState.x = 0; pzState.y = 0;
+        } else {
+          pzState.scale = 2;
+        }
+        applyPhotoZoom();
+      }
+      pzState.lastTapTime = now;
+    }
+  });
+
+  // Desktop: scroll wheel zoom
+  wrap.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    var delta = e.deltaY < 0 ? 0.15 : -0.15;
+    pzState.scale = Math.min(Math.max(pzState.scale + delta, 1), 5);
+    if (pzState.scale <= 1) { pzState.scale = 1; pzState.x = 0; pzState.y = 0; }
+    applyPhotoZoom();
+  }, { passive: false });
+}
+
+// ══════════════════════════════════════════════
+//  MARKER PICK
+// ══════════════════════════════════════════════
+function startPick(ubId, areaId, defectId) {
+  pickingInfo = { ubId: ubId, areaId: areaId, defectId: defectId };
+
+  var ub = findUb(ubId);
+  var area = findArea(ub, areaId);
+
+  var img = document.getElementById('fp-pick-img');
+  var container = document.getElementById('fp-pick-container');
+  img.style.display = 'none';
+  container.style.background = '';
+
+  // Objek dummy sebagai "fallbackEl" — saat semua URL gagal, ubah background container
+  var fallbackProxy = {
+    style: {
+      set display(v) {
+        container.style.background = (v === 'flex' || v === 'block') ? '#F0F6FF' : '';
+      }
+    }
+  };
+
+  attachFloorplanHandlers(img, ub, fallbackProxy);
+
+  var markersHtml = '';
+  for (var i = 0; i < area.defects.length; i++) {
+    var d = area.defects[i];
+    if (!d.marker) continue;
+    var color = MARKER_COLORS[i % MARKER_COLORS.length];
+    var circle = MARKER_CIRCLES[i] || (i + 1);
+    var isActive = (d.id === defectId) ? ' active-pick' : '';
+    markersHtml += '<div class="fp-defect-marker' + isActive + '" data-mx="' + d.marker.x + '" data-my="' + d.marker.y + '" style="left:' + d.marker.x + '%;top:' + d.marker.y + '%;background:' + color + ';" title="' + escHtml(d.desc || 'Defect #' + (i+1)) + '">' + circle + '</div>';
+  }
+  document.getElementById('fp-pick-markers').innerHTML = markersHtml;
+  // Defer repositioning until image is loaded and layout is ready
+  setTimeout(repositionFpMarkers, 50);
+
+  resetFpZoom();
+  document.getElementById('fp-pick-modal').classList.add('active');
+  lockPageZoom();
+
+  // Reposisi marker saat ukuran window berubah
+  if (!window._fpResizeListener) {
+    window._fpResizeListener = function() {
+      if (document.getElementById('fp-pick-modal').classList.contains('active')) {
+        repositionFpMarkers();
+      }
+    };
+    window.addEventListener('resize', window._fpResizeListener);
+  }
+}
+
+// Reposisi marker di popup agar sesuai dengan area render gambar (object-fit:contain letterbox)
+function repositionFpMarkers() {
+  var img = document.getElementById('fp-pick-img');
+  var markersEl = document.getElementById('fp-pick-markers');
+  if (!img || !markersEl) return;
+
+  var container = document.getElementById('fp-pick-container');
+  var containerRect = container.getBoundingClientRect();
+  var stageW = containerRect.width;
+  var stageH = containerRect.height;
+  var natW = img.naturalWidth || stageW;
+  var natH = img.naturalHeight || stageH;
+
+  // Hitung area render aktual gambar dalam stage (object-fit:contain)
+  var imgScale = Math.min(stageW / natW, stageH / natH);
+  var rendW = natW * imgScale;
+  var rendH = natH * imgScale;
+  var imgOffsetX = (stageW - rendW) / 2;
+  var imgOffsetY = (stageH - rendH) / 2;
+
+  var markers = markersEl.querySelectorAll('.fp-defect-marker');
+  for (var i = 0; i < markers.length; i++) {
+    var m = markers[i];
+    var mx = parseFloat(m.getAttribute('data-mx'));
+    var my = parseFloat(m.getAttribute('data-my'));
+    if (isNaN(mx) || isNaN(my)) continue;
+    // Ubah dari persentase gambar → pixel dalam stage (sebelum zoom transform)
+    var px = imgOffsetX + (mx / 100) * rendW;
+    var py = imgOffsetY + (my / 100) * rendH;
+    m.style.left = px + 'px';
+    m.style.top = py + 'px';
+  }
+}
+
+function cancelPickModal() {
+  pickingInfo = null;
+  document.getElementById('fp-pick-modal').classList.remove('active');
+  unlockPageZoom();
+}
+
+function onFloorplanClick(e, ubId, areaId) {
+  // Tidak dipakai - picking dilakukan via modal
+}
+
+function getRenderedImageRect(img) {
+  // img pakai object-fit:contain — elemen DOM bisa lebih besar dari area gambar aktual
+  // (ada letterbox/pillarbox). Hitung area gambar nyata yang dirender di dalam elemen.
+  var domRect = img.getBoundingClientRect();
+  var domW = domRect.width;
+  var domH = domRect.height;
+  var natW = img.naturalWidth || domW;
+  var natH = img.naturalHeight || domH;
+  if (!natW || !natH) return domRect; // fallback ke rect penuh jika metadata belum tersedia
+
+  var scale = Math.min(domW / natW, domH / natH);
+  var rendW = natW * scale;
+  var rendH = natH * scale;
+  var offsetX = (domW - rendW) / 2;
+  var offsetY = (domH - rendH) / 2;
+
+  return {
+    left:   domRect.left + offsetX,
+    top:    domRect.top  + offsetY,
+    width:  rendW,
+    height: rendH
+  };
+}
+
+function placeMarkerAt(clientX, clientY) {
+  if (!pickingInfo) return;
+  var img = document.getElementById('fp-pick-img');
+
+  // Balik transformasi zoom/pan pada stage agar koordinat klik
+  // sesuai dengan ruang koordinat gambar sebelum di-transform.
+  // transform-origin: 0 0 → transform = translate(x,y) scale(s)
+  // client → container → stage: unscaled = (containerLocal - translate) / scale
+  var containerRect = document.getElementById('fp-pick-container').getBoundingClientRect();
+  var localX = clientX - containerRect.left;
+  var localY = clientY - containerRect.top;
+  var unscaledX = (localX - fpzState.x) / fpzState.scale;
+  var unscaledY = (localY - fpzState.y) / fpzState.scale;
+  // unscaledX/Y sekarang dalam ruang stage (0,0 = pojok kiri atas stage)
+
+  // Hitung area render aktual gambar (object-fit:contain) dalam ruang stage
+  // (stage tanpa transform = sama persis dengan container pada scale=1)
+  // naturalWidth/Height gambar, dan ukuran stage (= container saat scale=1)
+  var stageW = containerRect.width;
+  var stageH = containerRect.height;
+  var natW = img.naturalWidth || stageW;
+  var natH = img.naturalHeight || stageH;
+  var scale = Math.min(stageW / natW, stageH / natH);
+  var rendW = natW * scale;
+  var rendH = natH * scale;
+  var imgOffsetX = (stageW - rendW) / 2;
+  var imgOffsetY = (stageH - rendH) / 2;
+
+  var x = ((unscaledX - imgOffsetX) / rendW)  * 100;
+  var y = ((unscaledY - imgOffsetY) / rendH) * 100;
+  if (x < 0 || x > 100 || y < 0 || y > 100) return;
+
+  var ub = findUb(pickingInfo.ubId);
+  if (!ub) return;
+  var area = findArea(ub, pickingInfo.areaId);
+  if (!area) return;
+  var d = findDefect(area, pickingInfo.defectId);
+  if (!d) return;
+
+  d.marker = { x: parseFloat(x.toFixed(2)), y: parseFloat(y.toFixed(2)) };
+
+  document.getElementById('fp-pick-modal').classList.remove('active');
+  var savedUb = findUb(pickingInfo.ubId);
+  var savedArea = savedUb ? findArea(savedUb, pickingInfo.areaId) : null;
+  pickingInfo = null;
+  unlockPageZoom();
+
+  if (savedUb && savedArea) patchAreaDefects(savedUb, savedArea);
+  saveSession();
+  toast('Marker berhasil dipilih', 'success');
+}
+
+// ── Floorplan pick modal: pinch-zoom & pan pada denah (mirip photo modal) ──
+var fpzState = {
+  scale: 1, x: 0, y: 0,
+  startDist: 0, startScale: 1,
+  // anchor pinch (dalam viewport) untuk zoom smooth
+  pinchMidX: 0, pinchMidY: 0,
+  // pan state
+  xAtPinchStart: 0, yAtPinchStart: 0,
+  dragging: false, moved: false,
+  lastX: 0, lastY: 0, startX: 0, startY: 0
+};
+var fpzHandlersInit = false;
+
+function resetFpZoom() {
+  // Dengan transform-origin:0 0, saat scale=1 stage sudah memenuhi container —
+  // cukup reset translate ke 0,0 dan scale ke 1.
+  fpzState.scale = 1; fpzState.x = 0; fpzState.y = 0; fpzState.moved = false;
+  applyFpZoom();
+  initFpZoomHandlers();
+}
+
+function applyFpZoom() {
+  var stage = document.getElementById('fp-pick-stage');
+  if (!stage) return;
+  // Gunakan transform-origin: 0 0 agar math anchor pinch sederhana dan presisi.
+  stage.style.transformOrigin = '0 0';
+  stage.style.transform = 'translate(' + fpzState.x + 'px,' + fpzState.y + 'px) scale(' + fpzState.scale + ')';
+  stage.style.transition = fpzState.dragging ? 'none' : 'transform 0.12s ease';
+}
+
+function fpzDist(t0, t1) {
+  var dx = t1.clientX - t0.clientX, dy = t1.clientY - t0.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+function initFpZoomHandlers() {
+  if (fpzHandlersInit) return;
+  fpzHandlersInit = true;
+  var container = document.getElementById('fp-pick-container');
+  if (!container) return;
+
+  container.addEventListener('touchstart', function(e) {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      fpzState.startDist  = fpzDist(e.touches[0], e.touches[1]);
+      fpzState.startScale = fpzState.scale;
+      // Simpan midpoint dua jari dalam viewport sebagai anchor
+      fpzState.pinchMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      fpzState.pinchMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      // Simpan posisi pan saat pinch dimulai
+      fpzState.xAtPinchStart = fpzState.x;
+      fpzState.yAtPinchStart = fpzState.y;
+      fpzState.moved = true;
+    } else if (e.touches.length === 1) {
+      fpzState.dragging = true;
+      fpzState.moved = false;
+      fpzState.lastX = e.touches[0].clientX;
+      fpzState.lastY = e.touches[0].clientY;
+      fpzState.startX = e.touches[0].clientX;
+      fpzState.startY = e.touches[0].clientY;
+    }
+  }, { passive: false });
+
+  container.addEventListener('touchmove', function(e) {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      var dist = fpzDist(e.touches[0], e.touches[1]);
+      var newScale = Math.min(Math.max(fpzState.startScale * (dist / fpzState.startDist), 1), 5);
+
+      // Hitung posisi container dalam viewport (offset stage dalam dokumen)
+      var containerRect = container.getBoundingClientRect();
+
+      // Posisi anchor (midpoint pinch) relatif terhadap container
+      var anchorContainerX = fpzState.pinchMidX - containerRect.left;
+      var anchorContainerY = fpzState.pinchMidY - containerRect.top;
+
+      // Posisi titik yang sama dalam ruang stage (sebelum transform) pada saat pinch dimulai
+      // dengan scale lama: p_stage = (anchorContainer - x0) / scale0
+      var stagePointX = (anchorContainerX - fpzState.xAtPinchStart) / fpzState.startScale;
+      var stagePointY = (anchorContainerY - fpzState.yAtPinchStart) / fpzState.startScale;
+
+      // Supaya p_stage tetap di anchorContainer setelah scale baru:
+      // x_new = anchorContainer - stagePoint * newScale
+      fpzState.x = anchorContainerX - stagePointX * newScale;
+      fpzState.y = anchorContainerY - stagePointY * newScale;
+      fpzState.scale = newScale;
+      applyFpZoom();
+    } else if (e.touches.length === 1 && fpzState.dragging) {
+      var dx = e.touches[0].clientX - fpzState.lastX;
+      var dy = e.touches[0].clientY - fpzState.lastY;
+      var totalDx = e.touches[0].clientX - fpzState.startX;
+      var totalDy = e.touches[0].clientY - fpzState.startY;
+      if (Math.abs(totalDx) > 6 || Math.abs(totalDy) > 6) fpzState.moved = true;
+      if (fpzState.scale > 1) {
+        e.preventDefault();
+        fpzState.x += dx;
+        fpzState.y += dy;
+        fpzState.lastX = e.touches[0].clientX;
+        fpzState.lastY = e.touches[0].clientY;
+        applyFpZoom();
+      } else {
+        fpzState.lastX = e.touches[0].clientX;
+        fpzState.lastY = e.touches[0].clientY;
+      }
+    }
+  }, { passive: false });
+
+  container.addEventListener('touchend', function(e) {
+    if (e.touches.length === 0) {
+      var wasDragging = fpzState.dragging;
+      var wasMoved = fpzState.moved;
+      fpzState.dragging = false;
+      if (fpzState.scale <= 1) { fpzState.scale = 1; fpzState.x = 0; fpzState.y = 0; applyFpZoom(); }
+      // Tap (tidak bergeser & tidak pinch) -> tempatkan marker
+      if (wasDragging && !wasMoved && e.changedTouches.length === 1) {
+        placeMarkerAt(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
+      }
+    }
+  });
+
+  // Desktop: scroll wheel zoom dengan anchor di posisi kursor
+  container.addEventListener('wheel', function(e) {
+    e.preventDefault();
+    var delta = e.deltaY < 0 ? 0.15 : -0.15;
+    var oldScale = fpzState.scale;
+    var newScale = Math.min(Math.max(oldScale + delta, 1), 5);
+
+    var containerRect = container.getBoundingClientRect();
+    var anchorX = e.clientX - containerRect.left;
+    var anchorY = e.clientY - containerRect.top;
+
+    // Pertahankan titik di bawah kursor tetap di tempat yang sama
+    fpzState.x = anchorX - (anchorX - fpzState.x) * (newScale / oldScale);
+    fpzState.y = anchorY - (anchorY - fpzState.y) * (newScale / oldScale);
+
+    if (newScale <= 1) { fpzState.scale = 1; fpzState.x = 0; fpzState.y = 0; }
+    else { fpzState.scale = newScale; }
+    applyFpZoom();
+  }, { passive: false });
+
+  // Desktop: klik untuk tempatkan marker (drag mouse untuk pan saat zoom)
+  var mouseDownPos = null, mouseMoved = false, mouseDragging = false;
+  container.addEventListener('mousedown', function(e) {
+    mouseDownPos = { x: e.clientX, y: e.clientY };
+    mouseMoved = false;
+    mouseDragging = fpzState.scale > 1;
+  });
+  container.addEventListener('mousemove', function(e) {
+    if (!mouseDownPos) return;
+    var dx = e.clientX - mouseDownPos.x, dy = e.clientY - mouseDownPos.y;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) mouseMoved = true;
+    if (mouseDragging && mouseMoved) {
+      fpzState.x += e.movementX || 0;
+      fpzState.y += e.movementY || 0;
+      applyFpZoom();
+    }
+  });
+  container.addEventListener('mouseup', function(e) {
+    if (mouseDownPos && !mouseMoved) {
+      placeMarkerAt(e.clientX, e.clientY);
+    }
+    mouseDownPos = null;
+    mouseDragging = false;
+  });
+}
+
+// ══════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════
+function toast(msg, type) {
+  type = type || 'success';
+  var icons = { success: 'check-circle-fill', warning: 'exclamation-triangle-fill', info: 'info-circle-fill' };
+  var c = document.getElementById('toast-container');
+  var t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.innerHTML = '<i class="bi bi-' + (icons[type] || icons.success) + '"></i> ' + msg;
+  c.appendChild(t);
+  setTimeout(function() {
+    t.classList.add('fade-out');
+    setTimeout(function() { t.remove(); }, 300);
+  }, 3500);
+}
+
+// ══════════════════════════════════════════════
+//  VALIDATE
+// ══════════════════════════════════════════════
+function scrollToAndHighlight(el, blockEl) {
+  var target = blockEl || el;
+  if (!target) return;
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  var cls = (el && el.classList && (el.tagName === 'INPUT' || el.tagName === 'SELECT')) ? 'field-error-highlight' : 'block-error-highlight';
+  var highlightTarget = el || blockEl;
+  highlightTarget.classList.add(cls);
+  setTimeout(function() {
+    highlightTarget.classList.remove(cls);
+  }, 3000);
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'SELECT')) {
+    setTimeout(function() { el.focus(); }, 300);
+  }
+}
+
+function highlightErrorField(el, type) {
+  if (!el) return;
+  var cls = type === 'desc' ? 'desc-error'
+           : type === 'marker' ? 'marker-error'
+           : type === 'area' ? 'area-error'
+           : 'field-error-highlight';
+  el.classList.add(cls);
+  setTimeout(function() { el.classList.remove(cls); }, 3500);
+}
+
+function validateAll() {
+  if (unitBlocks.length === 0) {
+    toast('Belum ada data unit', 'warning');
+    return false;
+  }
+  for (var i = 0; i < unitBlocks.length; i++) {
+    var ub = unitBlocks[i];
+    var ubBlockEl = document.getElementById('ub-block-' + ub.id);
+    if (!ub.unit) {
+      toast('Unit belum dipilih pada blok ke-' + (i+1), 'warning');
+      scrollToAndHighlight(document.getElementById('unit-sel-' + ub.id), ubBlockEl);
+      return false;
+    }
+    if (!ub.date) {
+      toast('Tanggal belum diisi pada blok ke-' + (i+1), 'warning');
+      var dateWrap = document.getElementById('date-input-' + ub.id);
+      var dateTextEl = dateWrap ? dateWrap.previousElementSibling : null;
+      scrollToAndHighlight(dateTextEl || dateWrap, ubBlockEl);
+      return false;
+    }
+    for (var j = 0; j < ub.areas.length; j++) {
+      var area = ub.areas[j];
+      var areaBlockEl = document.getElementById('area-block-' + area.id);
+        if (!area.areaName || area.areaName.trim() === '') {
+        toast('Nama area ke-' + (j+1) + ' belum diisi pada unit ' + ub.unit, 'warning');
+        var areaNameEl = document.getElementById('area-name-' + area.id);
+        // Scroll instant, highlight merah, langsung fokus agar keyboard muncul
+        if (areaNameEl) {
+          areaNameEl.scrollIntoView({ behavior: 'instant', block: 'center' });
+          highlightErrorField(areaNameEl, 'area');
+          areaNameEl.focus();
+          areaNameEl.select();
+        } else if (areaBlockEl) {
+          areaBlockEl.scrollIntoView({ behavior: 'instant', block: 'center' });
+        }
+        if (areaBlockEl) {
+          areaBlockEl.classList.add('block-error-highlight');
+          setTimeout(function(el) { return function() { el.classList.remove('block-error-highlight'); }; }(areaBlockEl), 3500);
+        }
+        return false;
+      }
+      if (area.defects.length === 0) {
+        toast('Area "' + area.areaName + '" pada unit ' + ub.unit + ' belum ada defect', 'warning');
+        scrollToAndHighlight(null, areaBlockEl);
+        return false;
+      }
+      for (var k = 0; k < area.defects.length; k++) {
+        var d = area.defects[k];
+        if (!d.desc || d.desc.trim() === '') {
+          toast('Deskripsi defect #' + (k+1) + ' di area "' + area.areaName + '" belum diisi', 'warning');
+          // Highlight merah + langsung fokus supaya keyboard muncul (mobile)
+          var descElDesk = document.getElementById('desc-' + d.id);
+          var descElMob = document.getElementById('dcdesc-' + d.id);
+          var descEl = descElDesk || descElMob;
+          if (descEl) {
+            // Scroll instant agar elemen visible dulu, lalu langsung focus tanpa delay
+            descEl.scrollIntoView({ behavior: 'instant', block: 'center' });
+            descEl.focus();
+            descEl.select();
+          } else if (areaBlockEl) {
+            areaBlockEl.scrollIntoView({ behavior: 'instant', block: 'center' });
+          }
+          if (descElDesk) highlightErrorField(descElDesk, 'desc');
+          if (descElMob) highlightErrorField(descElMob, 'desc');
+          return false;
+        }
+        if (!d.marker) {
+          toast('Marker lokasi defect #' + (k+1) + ' di area "' + area.areaName + '" belum dipilih', 'warning');
+          // Highlight merah pada tombol marker (desktop & mobile)
+          var markerBtns = [];
+          var rowEl = document.querySelector('tr[data-defect-id="' + d.id + '"]');
+          if (rowEl) {
+            var mb = rowEl.querySelector('.btn-marker');
+            if (mb) markerBtns.push(mb);
+          }
+          var cardEl = document.querySelector('.dc-item[data-defect-id="' + d.id + '"]');
+          if (cardEl) {
+            var mb2 = cardEl.querySelector('.btn-marker');
+            if (mb2) markerBtns.push(mb2);
+          }
+          // Fallback: cari semua btn-marker di area block
+          if (markerBtns.length === 0 && areaBlockEl) {
+            var allMb = areaBlockEl.querySelectorAll('.btn-marker:not(.has-marker)');
+            // Ambil yang ke-(k) karena urutan defect
+            if (allMb[k]) markerBtns.push(allMb[k]);
+          }
+          for (var m = 0; m < markerBtns.length; m++) highlightErrorField(markerBtns[m], 'marker');
+          if (areaBlockEl) {
+            areaBlockEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            areaBlockEl.classList.add('block-error-highlight');
+            setTimeout(function(el) { return function() { el.classList.remove('block-error-highlight'); }; }(areaBlockEl), 3500);
+          }
+          return false;
+        }
+        if (d.fotoUploading) {
+          toast('Tunggu sampai proses foto selesai', 'warning');
+          scrollToAndHighlight(null, areaBlockEl);
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+// ══════════════════════════════════════════════
+//  GENERATE REPORT - POST /generate-report + polling
+// ══════════════════════════════════════════════
+function buildReportPayload() {
+  var payload = { units: [] };
+  for (var i = 0; i < unitBlocks.length; i++) {
+    var ub = unitBlocks[i];
+    var areas = [];
+    for (var j = 0; j < ub.areas.length; j++) {
+      var area = ub.areas[j];
+      var defects = [];
+      for (var k = 0; k < area.defects.length; k++) {
+        var d = area.defects[k];
+        defects.push({
+          desc: d.desc || '',
+          foto_file_id: d.fotoFileId || null,
+          foto_url: d.foto || null,
+          marker: d.marker ? { x: d.marker.x, y: d.marker.y } : null
+        });
+      }
+      areas.push({ area_name: area.areaName || '', defects: defects });
+    }
+    payload.units.push({ tower: ub.tower, unit: ub.unit, date: ub.date, areas: areas });
+  }
+  return payload;
+}
+
+async function openGenModal(recovering) {
+  if (!recovering && !validateAll()) return;
+
+  document.getElementById('gen-modal').classList.add('active');
+  document.getElementById('gen-progress-view').style.display = '';
+  document.getElementById('gen-done-view').style.display = 'none';
+  document.getElementById('gen-error-view').style.display = 'none';
+  document.getElementById('gen-progress-title').textContent = 'Membuat Laporan...';
+  document.getElementById('gen-progress-subtitle').textContent = recovering ? 'Memantau proses sebelumnya...' : 'Mengirim data ke server...';
+  document.getElementById('gen-progress-fill').style.width = '0%';
+  document.getElementById('gen-progress-label').textContent = '0%';
+
+  if (recovering) return; // jobId & polling sudah ditangani oleh init()
+
+  cancelRequested = false;
+  t0 = Date.now();
+
+  try {
+    var res = await fetch(api('/generate-report'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(buildReportPayload()),
+      signal: AbortSignal.timeout(15000)
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    if (data.success === false) throw new Error(data.message || 'Gagal memulai proses laporan');
+
+    jobId = data.job_id;
+    saveSession();
+    applyBackendData({ status: data.status || 'waiting', progress: 0, stage: null });
+    startPolling();
+  } catch (err) {
+    showGenError(err.message || 'Tidak dapat terhubung ke server');
+  }
+}
+
+function applyBackendData(data) {
+  var status = data.status;
+  var progress = (typeof data.progress === 'number') ? data.progress : null;
+  var stage = data.stage || null;
+
+  if (progress !== null) {
+    document.getElementById('gen-progress-fill').style.width = progress + '%';
+    document.getElementById('gen-progress-label').textContent = Math.round(progress) + '%';
+  }
+
+  var subtitle = stage
+    ? stage
+    : (status === 'waiting' ? 'Menunggu dalam antrian…'
+      : status === 'processing' ? 'Sedang memproses laporan…'
+      : status === 'completed' ? 'Selesai!'
+      : status === 'error' ? 'Gagal'
+      : 'Memproses…');
+  document.getElementById('gen-progress-subtitle').textContent = subtitle;
+}
+
+function startPolling() {
+  if (pollIv) clearInterval(pollIv);
+  var pollingForJobId = jobId;
+  pollIv = setInterval(async function() {
+    if (jobId !== pollingForJobId) { clearInterval(pollIv); pollIv = null; return; }
+    if (cancelRequested) return;
+    try {
+      var res = await fetch(api('/status/' + encodeURIComponent(pollingForJobId)), { signal: AbortSignal.timeout(8000) });
+      var data = await res.json();
+      if (jobId !== pollingForJobId) return;
+      if (cancelRequested) return;
+
+      applyBackendData(data);
+
+      if (data.status === 'completed') {
+        stopPolling();
+        setTimeout(showGenDone, 400);
+      } else if (data.status === 'error') {
+        stopPolling();
+        showGenError(data.message || data.error || 'Terjadi kesalahan saat memproses laporan');
+      } else if (data.status === 'cancelled') {
+        stopPolling();
+        closeGenModal();
+        jobId = null;
+        saveSession();
+      }
+    } catch (err) {
+      // network error - jangan hentikan polling, coba lagi di interval berikutnya
+    }
   }, 2000);
 }
 
@@ -1026,687 +2228,64 @@ function stopPolling() {
   if (pollIv) { clearInterval(pollIv); pollIv = null; }
 }
 
-// ── cancelJobById: batalkan file tertentu by job_id, lanjutkan ke file berikutnya jika ada ──
-async function cancelJobById(forJobId) {
-  // Guard: tidak boleh ada cancel lain yang sedang berjalan
-  if (cancelRequested !== null) {
-    showToast('⏳ Sedang membatalkan file lain, harap tunggu…', 'info');
-    return;
-  }
-  if (!forJobId) return;
-  if (!uploadedJobs.some(function(j) { return j.job_id === forJobId; })) return;
-
-  cancelRequested = forJobId;
-
-  // Hentikan polling jika ini adalah job yang sedang aktif dipantau
-  const wasActive = (jobId === forJobId);
-  if (wasActive) {
-    stopPolling();
-    stopElapsed();
-    addLog('[WARN] Pembatalan diminta untuk: ' + forJobId, 'w');
-    setProgress(currentProgress, 'Membatalkan…');
-  }
-
-  // ── 1. Kirim permintaan cancel ke backend ──
-  try {
-    let res = await fetch(api('/job/' + encodeURIComponent(forJobId)), {
-      method: 'DELETE', signal: AbortSignal.timeout(5000)
-    });
-    if (!res.ok) {
-      res = await fetch(api('/cancel/' + encodeURIComponent(forJobId)), {
-        method: 'POST', signal: AbortSignal.timeout(5000)
-      });
-    }
-  } catch (_) {
-    if (wasActive) addLog('[WARN] Endpoint cancel tidak tersedia, menunggu konfirmasi…', 'w');
-  }
-
-  // ── 2. Poll sampai status final atau timeout ──
-  const FINAL = new Set(['cancelled', 'error', 'completed']);
-  let confirmed = false;
-  let finalStatus = null;
-  for (let i = 0; i < 10; i++) {
-    await new Promise(function(r) { setTimeout(r, 1500); });
-    if (cancelRequested !== forJobId) return; // dibatalkan dari luar
-    try {
-      const r = await fetch(api('/status/' + encodeURIComponent(forJobId)), { signal: AbortSignal.timeout(4000) });
-      const d = await r.json();
-      if (FINAL.has(d.status)) { confirmed = true; finalStatus = d.status; break; }
-    } catch (_) {}
-  }
-
-  if (cancelRequested !== forJobId) return;
-
-  // ── 3. Race condition: sudah selesai sebelum dibatalkan ──
-  if (finalStatus === 'completed') {
-    addLog('[INFO] Job sudah selesai sebelum dibatalkan', 'i');
-    showToast('✅ Job sudah selesai sebelum dibatalkan', 'ok');
-    if (!completedJobIds.includes(forJobId)) completedJobIds.push(forJobId);
-    cancelRequested = null;
-    saveSession();
-    if (wasActive) setTimeout(showResult, 300);
-    else fetchAndRenderQueue(lastStatus || 'waiting');
-    return;
-  }
-
-  // ── 4. Hapus job dari daftar ──
-  uploadedJobs    = uploadedJobs.filter(function(j) { return j.job_id !== forJobId; });
-  completedJobIds = completedJobIds.filter(function(id) { return id !== forJobId; });
-  cancelRequested = null;
-
-  if (confirmed) {
-    if (wasActive) addLog('[WARN] File dibatalkan ✓', 'w');
-    showToast('🚫 File dibatalkan', 'info');
-  } else {
-    if (wasActive) addLog('[WARN] Cancel dikirim, konfirmasi timeout', 'w');
-    showToast('⚠️ Permintaan batal dikirim', 'info');
-  }
-
-  saveSession();
-
-  if (!wasActive) {
-    // Bukan job aktif — cukup refresh antrian
-    fetchAndRenderQueue(lastStatus || 'waiting');
-    return;
-  }
-
-  // ── 5. Job aktif dibatalkan → cari file berikutnya tanpa reset halaman ──
-  const pending = uploadedJobs.filter(function(j) { return !completedJobIds.includes(j.job_id); });
-
-  if (pending.length === 0) {
-    // Tidak ada file tersisa → reset bersih ke tampilan awal
-    clearSession();
-    reset();
-    return;
-  }
-
-  // Lanjutkan ke file berikutnya TANPA menyembunyikan panel apapun
-  const nextJob = pending[0];
-  jobId    = nextJob.job_id;
-  selFile  = selFiles.find(function(f) { return f.name === nextJob.filename; }) || null;
-  lastStatus = null;
-  lastStage  = null;
-  t0 = Date.now();
-
-  document.getElementById('log-body').innerHTML = '';
-  setProgress(0, 'Melanjutkan ke file berikutnya…');
-  renderSteps(-1);
-  renderPipeline(0);
-  startElapsed();
-
-  addLog('[INFO] Melanjutkan ke file: ' + nextJob.filename, 'i');
-  addLog('[INFO] Job ID: ' + nextJob.job_id, 'i');
-
-  saveSession();
-  startPolling();
+function showGenDone() {
+  document.getElementById('gen-progress-view').style.display = 'none';
+  document.getElementById('gen-error-view').style.display = 'none';
+  document.getElementById('gen-done-view').style.display = '';
+  toast('Laporan berhasil dibuat', 'success');
 }
 
-// ── cancelQueueRow: batalkan file tertentu langsung dari baris antrian ──
-// Dipanggil oleh tombol Batalkan per-baris di q-list.
-// Hanya membatalkan job milik user sendiri (isMine sudah difilter di render).
-// Tidak memengaruhi job milik user lain, maupun job aktif yang sedang diproses user lain.
-async function cancelQueueRow(btn) {
-  const targetJobId = btn.getAttribute('data-jobid');
-  if (!targetJobId) return;
-
-  // Jika ini adalah job aktif yang sedang dipantau, delegate ke cancelJobById (full flow)
-  if (targetJobId === jobId) {
-    cancelJobById(targetJobId);
-    return;
-  }
-
-  // Guard: jangan cancel bersamaan dengan proses cancel lain
-  if (cancelRequested !== null) {
-    showToast('⏳ Sedang membatalkan file lain, harap tunggu…', 'info');
-    return;
-  }
-
-  // Validasi ownership — hanya job milik user ini yang boleh dibatalkan
-  const isMyJob = uploadedJobs.some(function(j) { return j.job_id === targetJobId; });
-  if (!isMyJob) return;
-
-  btn.disabled = true;
-  btn.innerHTML =
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:10px;height:10px">' +
-      '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' +
-    '</svg> Membatalkan…';
-
-  // Kirim permintaan cancel ke backend untuk job ini saja
-  try {
-    let res = await fetch(api('/job/' + encodeURIComponent(targetJobId)), {
-      method: 'DELETE',
-      signal: AbortSignal.timeout(6000)
-    });
-    if (!res.ok) {
-      res = await fetch(api('/cancel/' + encodeURIComponent(targetJobId)), {
-        method: 'POST',
-        signal: AbortSignal.timeout(6000)
-      });
-    }
-  } catch (_) {
-    // Lanjutkan ke polling konfirmasi meskipun request gagal
-  }
-
-  // Poll status job ini saja sampai final atau timeout (~15 detik)
-  const FINAL = new Set(['cancelled', 'error', 'completed']);
-  let confirmed = false;
-  for (let i = 0; i < 10; i++) {
-    await new Promise(function(r) { setTimeout(r, 1500); });
-    try {
-      const r = await fetch(api('/status/' + encodeURIComponent(targetJobId)),
-                            { signal: AbortSignal.timeout(4000) });
-      const d = await r.json();
-      if (FINAL.has(d.status)) { confirmed = true; break; }
-    } catch (_) {}
-  }
-
-  // Hapus dari state milik user ini saja — tidak menyentuh job lain
-  uploadedJobs    = uploadedJobs.filter(function(j) { return j.job_id !== targetJobId; });
-  completedJobIds = completedJobIds.filter(function(id) { return id !== targetJobId; });
-  saveSession();
-
-  if (confirmed) {
-    addLog('[WARN] File dibatalkan dari antrian: ' + targetJobId, 'w');
-    showToast('🚫 File berhasil dibatalkan dari antrian', 'info');
-  } else {
-    addLog('[WARN] Cancel dikirim, konfirmasi timeout', 'w');
-    showToast('⚠️ Permintaan batal dikirim, tunggu konfirmasi dari server', 'info');
-  }
-
-  // Refresh tampilan antrian (hanya render ulang — polling job aktif tidak terganggu)
-  fetchAndRenderQueue(lastStatus || 'waiting');
+function showGenError(msg) {
+  document.getElementById('gen-progress-view').style.display = 'none';
+  document.getElementById('gen-done-view').style.display = 'none';
+  document.getElementById('gen-error-view').style.display = '';
+  document.getElementById('gen-error-msg').textContent = msg || 'Terjadi kesalahan saat memproses laporan.';
+  toast('Gagal membuat laporan', 'warning');
 }
 
-// ── Elapsed timer ──
-function startElapsed() {
-  if (elapsedIv) clearInterval(elapsedIv);
-  elapsedIv = setInterval(function() {
-    document.getElementById('log-elapsed').textContent = ((Date.now() - t0) / 1000).toFixed(1) + ' s';
-  }, 100);
-}
-
-function stopElapsed() {
-  if (elapsedIv) { clearInterval(elapsedIv); elapsedIv = null; }
-}
-
-// ── Start Process (multi-file) ──
-async function startProcess() {
-  if (selFiles.length === 0) return;
-  stopQueuePreview();
-
-  const btn = document.getElementById('btn-main');
-  btn.disabled = true;
-  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Mengupload…';
-
-  // Upload semua file, masing-masing jadi job terpisah
-  const filesToUpload = selFiles.slice();
-  const successJobs   = [];
-  const failedFiles   = [];
-
-  // Upload satu per satu (sequential agar tidak membanjiri server)
-  for (let i = 0; i < filesToUpload.length; i++) {
-    const f = filesToUpload[i];
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Upload ' + (i+1) + '/' + filesToUpload.length + '…';
-    const form = new FormData();
-    form.append('file', f);
-    form.append('area_source_mode', areaSourceMode);
-    try {
-      const res = await fetch(api('/upload'), { method: 'POST', body: form });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Upload gagal');
-      successJobs.push({ job_id: data.job_id, filename: f.name, status: data.status || 'waiting' });
-    } catch (err) {
-      failedFiles.push({ name: f.name, reason: err.message });
-    }
-  }
-
-  // Jika semua gagal: kembalikan ke upload section, tampilkan error
-  if (successJobs.length === 0) {
-    btn.disabled = false;
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Proses File';
-    renderFileErrors(failedFiles);
-    return;
-  }
-
-  // Ada minimal 1 file berhasil → mulai proses job pertama
-  uploadedJobs = successJobs;
-  jobId        = successJobs[0].job_id;
-  completedJobIds = []; // bersihkan list selesai untuk batch upload baru
-  selFile      = filesToUpload.find(function(f) { return f.name === successJobs[0].filename; }) || filesToUpload[0];
-
-  document.getElementById('upload-section').style.display = 'none';
-  ['prog-card', 'queue-card', 'log-card'].forEach(function(id) {
-    document.getElementById(id).classList.add('show');
-  });
-
-  t0 = Date.now();
-  lastStatus = null;
-  lastStage  = null;
-  cancelRequested = null;
-  startElapsed();
-
-
-
-  document.getElementById('log-body').innerHTML = '';
-  setProgress(0, 'File masuk antrian…');
-  renderSteps(-1);
-  renderPipeline(0);
-
-  addLog('[INFO] ' + successJobs.length + ' file berhasil diupload ke antrian', 'ok');
-  addLog('[INFO] Mode parsing area: ' + (areaSourceMode === 'first' ? 'Bagian Pertama (kode unit)' : 'Bagian Kedua (nama ruangan)'), 'i');
-  if (failedFiles.length > 0) {
-    failedFiles.forEach(function(e) {
-      addLog('[WARN] Gagal: ' + e.name + ' - ' + e.reason, 'w');
-    });
-  }
-  successJobs.forEach(function(j, idx) {
-    addLog('[INFO] Job #' + (idx+1) + ': ' + j.filename + ' → ' + j.job_id, 'i');
-  });
-  addLog('[INFO] Memantau job pertama: ' + successJobs[0].filename, 'i');
-
-  applyBackendData({ status: successJobs[0].status || 'waiting', progress: 0, stage: null });
-  handleStatusOnce(successJobs[0].status || 'waiting');
-  saveSession(); // simpan session setelah upload berhasil
-  startPolling();
-}
-
-// ── Result ──
-function showResult() {
-  stopElapsed();
-  document.getElementById('prog-card').classList.remove('show');
-
-  // Tandai job ini sebagai selesai
-  if (jobId && !completedJobIds.includes(jobId)) {
-    completedJobIds.push(jobId);
-  }
-
-  saveSession(); // persist setelah job selesai
-
-  // Cek apakah masih ada job lain yang belum selesai
-  const pending = uploadedJobs.filter(function(j) {
-    return !completedJobIds.includes(j.job_id);
-  });
-
-  // Selalu render daftar download yang sudah selesai & tampilkan result-card
-  renderResultList();
-  document.getElementById('result-card').classList.add('show');
-
-  if (pending.length > 0) {
-    // Masih ada file tersisa - update judul informatif
-    document.getElementById('result-title').textContent =
-      completedJobIds.length + ' File Selesai - ' + pending.length + ' File Tersisa';
-    document.getElementById('result-sub').textContent =
-      'File berikutnya sedang diproses. Tombol unduh akan muncul seiring selesainya tiap file.';
-
-    // Mulai monitor job berikutnya tanpa menyembunyikan result-card
-    const nextJob = pending[0];
-    setTimeout(function() {
-      jobId = nextJob.job_id;
-      selFile = selFiles.find(function(f) { return f.name === nextJob.filename; }) || selFiles[0];
-
-      // Reset progress & log untuk job baru, tapi result-card tetap tampil
-      t0 = Date.now();
-      lastStatus = null;
-      lastStage  = null;
-      cancelRequested = null;
-
-      startElapsed();
-      document.getElementById('log-body').innerHTML = '';
-      setProgress(0, 'File berikutnya masuk antrian…');
-      renderSteps(-1);
-      renderPipeline(0);
-      document.getElementById('prog-card').classList.add('show');
-      addLog('[INFO] Melanjutkan ke file: ' + nextJob.filename, 'i');
-      addLog('[INFO] Job ID: ' + nextJob.job_id, 'i');
-
-      saveSession(); // simpan sebelum polling job berikutnya
-      startPolling();
-    }, 800);
-  } else {
-    // Semua file selesai
-    document.getElementById('result-title').textContent = 'Semua File Selesai! ✅';
-    document.getElementById('result-sub').textContent =
-      uploadedJobs.length > 1
-        ? uploadedJobs.length + ' file Excel hasil QC siap diunduh.'
-        : 'File Excel hasil QC siap diunduh langsung dari halaman ini.';
-  }
-}
-
-function renderResultList() {
-  const list = document.getElementById('result-files-list');
-  const doneJobs = uploadedJobs.filter(function(j) {
-    return completedJobIds.includes(j.job_id);
-  });
-  list.innerHTML = doneJobs.map(function(j, idx) {
-    const outName = j.filename.replace(/\.pdf$/i, '') + '_Result.xlsx';
-    return '<div class="result-file" style="margin-bottom:10px;text-align:left">' +
-      '<div class="result-file-ico">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
-      '</div>' +
-      '<div style="flex:1;min-width:0">' +
-        '<div class="result-fname">' + escHtml(outName) + '</div>' +
-        '<div class="result-fmeta">Excel · Data QC Defect · Siap diunduh</div>' +
-      '</div>' +
-      '<button class="btn-dl" onclick="doDownloadJob(\'' + escHtml(j.job_id) + '\', this)" ' +
-        'style="padding:10px 20px;font-size:13px;margin-bottom:0;flex-shrink:0">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="15" x2="12" y2="4"/></svg>' +
-        ' Unduh' +
-      '</button>' +
-    '</div>';
-  }).join('');
-}
-
-// ── Download ──
-function doDownloadJob(jid, btn) {
-  if (!jid) return;
-  var origHtml = btn.innerHTML;
-  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px"><polyline points="20 6 9 17 4 12"/></svg> Mengunduh…';
-  btn.style.opacity = '.75';
-  window.location = api('/download/' + jid);
-  setTimeout(function() {
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:15px;height:15px"><polyline points="8 17 12 21 16 17"/><line x1="12" y1="15" x2="12" y2="4"/></svg> Unduh Lagi';
-    btn.style.opacity = '1';
-  }, 1500);
-}
-
-// backward compat
-function doDownload() {
-  var btn = document.getElementById('btn-dl');
-  doDownloadJob(jobId, btn || { innerHTML: '', style: {} });
-}
-
-// ── Reset ──
-function reset() {
+async function cancelGenerate() {
+  if (!jobId) { closeGenModal(); return; }
+  cancelRequested = true;
   stopPolling();
-  stopElapsed();
-  selFiles        = [];
-  selFile         = null;
-  uploadedJobs    = [];
-  jobId           = null;
-  lastStatus      = null;
-  lastStage       = null;
-  currentProgress = 0;
-  completedJobIds = [];
-  cancelRequested = null; // null bukan false — sesuai type baru
-  clearSession();         // hapus session agar tidak di-recover setelah selesai
-  document.getElementById('file-input').value = '';
-  renderFileList();
-  document.getElementById('file-errors-wrap').style.display = 'none';
-  document.getElementById('file-errors-wrap').innerHTML = '';
-  const btn = document.getElementById('btn-main');
-  btn.disabled = true;
-  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg> Proses File';
-  ['prog-card', 'queue-card', 'log-card', 'result-card'].forEach(function(id) {
-    document.getElementById(id).classList.remove('show');
-  });
-
-  document.getElementById('upload-section').style.display = '';
-  document.getElementById('prog-bar').style.width = '0%';
-  document.getElementById('prog-pct').textContent = '0%';
-  document.getElementById('log-body').innerHTML = '';
-  document.getElementById('log-elapsed').textContent = '0.0 s';
-  document.getElementById('prog-steps').innerHTML = '';
-  renderPipeline(-1);
-  // Mulai queue preview lagi setelah reset
-  startQueuePreview();
-}
-
-// ── Toast notification ──
-function showToast(msg, type) {
-  // type: 'ok' | 'err' | 'info'
-  var existing = document.getElementById('toast-notif');
-  if (existing) existing.remove();
-  var colors = {
-    ok:   { bg: 'var(--success-bg)', border: '#A7F3D0', color: '#059669' },
-    err:  { bg: 'var(--danger-bg)',  border: '#FCA5A5', color: '#DC2626' },
-    info: { bg: 'var(--primary-light)', border: '#BFDBFE', color: 'var(--primary)' }
-  };
-  var c = colors[type] || colors.info;
-  var t = document.createElement('div');
-  t.id = 'toast-notif';
-  t.style.cssText = [
-    'position:fixed', 'bottom:24px', 'right:24px', 'z-index:9999',
-    'background:' + c.bg, 'border:1px solid ' + c.border,
-    'color:' + c.color, 'border-radius:10px',
-    'padding:12px 20px', 'font-size:13.5px', 'font-weight:600',
-    'box-shadow:0 4px 20px rgba(0,0,0,.13)', 'max-width:320px',
-    'display:flex', 'align-items:center', 'gap:8px',
-    'animation:toast-in .25s ease', 'font-family:inherit'
-  ].join(';');
-  t.innerHTML = msg;
-  document.body.appendChild(t);
-  var style = document.createElement('style');
-  style.textContent = '@keyframes toast-in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}';
-  document.head.appendChild(style);
-  setTimeout(function() {
-    t.style.transition = 'opacity .3s';
-    t.style.opacity = '0';
-    setTimeout(function() { t.remove(); }, 350);
-  }, 3500);
-}
-
-// ── Admin: buka dialog ganti Backend URL ──
-async function openBackendConfig() {
-  var current = CONFIG.API_BASE;
-  var isDefault = !localStorage.getItem('API_BASE');
-
-  // Buat modal
-  var overlay = document.createElement('div');
-  overlay.id = 'cfg-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:8888;display:flex;align-items:center;justify-content:center;padding:20px;font-family:inherit';
-
-  overlay.innerHTML = [
-    '<div style="background:#fff;border-radius:16px;padding:28px;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2)">',
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">',
-        '<div style="font-size:15px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px">',
-          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:17px;height:17px;color:var(--primary)"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 0 4.93 19.07M4.93 4.93a10 10 0 0 0 14.14 14.14"/></svg>',
-          'Konfigurasi Backend URL',
-        '</div>',
-        '<button onclick="document.getElementById(\'cfg-overlay\').remove()" style="background:none;border:none;cursor:pointer;font-size:18px;color:var(--light);line-height:1;padding:2px">✕</button>',
-      '</div>',
-      '<div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500">URL Backend (Cloudflare Tunnel)</div>',
-      '<input id="cfg-input" type="url" value="' + current + '" ',
-        'style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;font-family:inherit;color:var(--text);outline:none;margin-bottom:6px;transition:border-color .15s" ',
-        'placeholder="https://xxxx.trycloudflare.com" ',
-        'onfocus="this.style.borderColor=\'var(--primary)\'" ',
-        'onblur="this.style.borderColor=\'var(--border)\'">',
-      '<div style="font-size:11.5px;color:var(--light);margin-bottom:20px">',
-        isDefault
-          ? '⚡ Menggunakan URL default'
-          : '📌 URL tersimpan dari localStorage',
-      '</div>',
-      '<div style="display:flex;gap:8px;flex-wrap:wrap">',
-        '<button id="cfg-save" onclick="saveBackendUrl()" ',
-          'style="flex:1;background:linear-gradient(135deg,#2563EB,#7C3AED);color:#fff;border:none;border-radius:8px;padding:11px 18px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit">',
-          'Simpan & Test Koneksi',
-        '</button>',
-        '<button onclick="resetBackendUrl()" ',
-          'style="background:none;border:1.5px solid var(--border);color:var(--muted);border-radius:8px;padding:11px 14px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;font-family:inherit">',
-          '↺ Reset ke Default',
-        '</button>',
-      '</div>',
-    '</div>'
-  ].join('');
-
-  document.body.appendChild(overlay);
-  overlay.addEventListener('click', function(e) {
-    if (e.target === overlay) overlay.remove();
-  });
-  setTimeout(function() { document.getElementById('cfg-input').focus(); }, 50);
-}
-
-// ── Simpan URL baru (validasi dulu dengan GET /status) ──
-async function saveBackendUrl() {
-  var input = document.getElementById('cfg-input');
-  if (!input) return;
-  var url = input.value.trim().replace(/\/$/, '');
-
-  if (!url.startsWith('http')) {
-    showToast('❌ URL tidak valid. Harus diawali https://', 'err');
-    return;
-  }
-
-  var btn = document.getElementById('cfg-save');
-  if (btn) { btn.textContent = 'Menguji koneksi…'; btn.disabled = true; btn.style.opacity = '.7'; }
 
   try {
-    var res = await fetch(url + '/status', { signal: AbortSignal.timeout(6000) });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    var data = await res.json();
-    // Berhasil
-    localStorage.setItem('API_BASE', url);
-    var overlay = document.getElementById('cfg-overlay');
-    if (overlay) overlay.remove();
-    showToast('✅ Backend Connected', 'ok');
-    setStatusPill(data.success === true || data.status !== undefined);
-  } catch (err) {
-    if (btn) { btn.textContent = 'Simpan & Test Koneksi'; btn.disabled = false; btn.style.opacity = '1'; }
-    showToast('❌ Backend Tidak Dapat Dihubungi', 'err');
-    setStatusPill(false);
-  }
+    var res = await fetch(api('/job/' + encodeURIComponent(jobId)), { method: 'DELETE', signal: AbortSignal.timeout(6000) });
+    if (!res.ok) {
+      await fetch(api('/cancel/' + encodeURIComponent(jobId)), { method: 'POST', signal: AbortSignal.timeout(6000) });
+    }
+  } catch (_) {}
+
+  toast('Proses dibatalkan', 'info');
+  jobId = null;
+  cancelRequested = false;
+  saveSession();
+  closeGenModal();
 }
 
-// ── Reset ke default URL ──
-function resetBackendUrl() {
-  localStorage.removeItem('API_BASE');
-  var overlay = document.getElementById('cfg-overlay');
-  if (overlay) overlay.remove();
-  showToast('↺ URL backend direset ke default', 'info');
-  // Re-test koneksi ke default
-  (async function() {
-    try {
-      var res = await fetch(api('/status'), { signal: AbortSignal.timeout(5000) });
-      var data = await res.json();
-      setStatusPill(data.success === true);
-    } catch (_) { setStatusPill(false); }
-  })();
+function retryGenerate() {
+  jobId = null;
+  saveSession();
+  openGenModal(false);
 }
 
-// ── Init: cek status backend + recovery session saat halaman dibuka ──
-(async function init() {
-  // 1. Cek status backend
-  try {
-    const res = await fetch(api('/status'), { signal: AbortSignal.timeout(5000) });
-    const data = await res.json();
-    setStatusPill(data.success === true);
-  } catch (_) {
-    setStatusPill(false);
+function closeGenModal() {
+  if (jobId && pollIv) {
+    toast('Proses masih berjalan di latar belakang', 'info');
   }
+  document.getElementById('gen-modal').classList.remove('active');
+}
 
-  // 2. Coba recovery session dari sessionStorage
-  const session = loadSession();
-  if (session && session.uploadedJobs && session.uploadedJobs.length > 0 && session.jobId) {
-    // Ada session tersimpan — cek apakah masih ada job yang aktif (waiting/processing)
-    // atau ada job selesai yang belum di-download
-    const jobs = session.uploadedJobs;
-    const done = session.completedJobIds || [];
-
-    // Cek status semua job ke backend
-    let anyActive = false;
-    let liveStatuses = {}; // job_id → status dari backend
-
-    await Promise.all(jobs.map(async function(j) {
-      try {
-        const r = await fetch(api('/status/' + encodeURIComponent(j.job_id)),
-                              { signal: AbortSignal.timeout(5000) });
-        const d = await r.json();
-        liveStatuses[j.job_id] = d.status || 'unknown';
-        if (d.status === 'waiting' || d.status === 'processing') anyActive = true;
-      } catch (_) {
-        liveStatuses[j.job_id] = 'unknown';
-      }
-    }));
-
-    // Tentukan apakah perlu recovery atau reset
-    // Kondisi reset: semua job sudah final (completed/error/cancelled/unknown) DAN sudah di-completedJobIds
-    const allFinal = jobs.every(function(j) {
-      const st = liveStatuses[j.job_id];
-      return st === 'error' || st === 'cancelled' || st === 'unknown' ||
-             (st === 'completed' && done.includes(j.job_id));
-    });
-
-    if (allFinal && !anyActive) {
-      // Semua selesai/error — bersihkan session, tampilkan halaman awal
-      clearSession();
-      startQueuePreview();
-      return;
-    }
-
-    // Ada job yang masih aktif atau selesai tapi belum di-download → recover
-    uploadedJobs    = jobs;
-    completedJobIds = done;
-    t0              = session.t0 || Date.now();
-    cancelRequested = null;
-    lastStatus      = null;
-    lastStage       = null;
-
-    // Tentukan jobId yang akan dipantau:
-    // Prioritas: job yang masih waiting/processing
-    // Fallback: job pertama yang belum di-completedJobIds
-    const activeJob = jobs.find(function(j) {
-      const st = liveStatuses[j.job_id];
-      return st === 'waiting' || st === 'processing';
-    });
-    const pendingJob = jobs.find(function(j) { return !done.includes(j.job_id); });
-    const recoveredJob = activeJob || pendingJob;
-
-    if (!recoveredJob) {
-      // Semua job selesai — tampilkan result
-      jobId = jobs[jobs.length - 1].job_id;
-      document.getElementById('upload-section').style.display = 'none';
-      ['queue-card', 'log-card'].forEach(function(id) {
-        document.getElementById(id).classList.add('show');
-      });
-      addLog('[INFO] Session dipulihkan setelah refresh', 'i');
-      addLog('[INFO] Semua file selesai', 'ok');
-      showResult();
-      return;
-    }
-
-    jobId = recoveredJob.job_id;
-
-    // Tampilkan UI processing
-    document.getElementById('upload-section').style.display = 'none';
-    ['prog-card', 'queue-card', 'log-card'].forEach(function(id) {
-      document.getElementById(id).classList.add('show');
-    });
-
-    // Jika ada job yang sudah selesai sebelumnya, tampilkan result-card juga
-    if (done.length > 0) {
-      renderResultList();
-      document.getElementById('result-card').classList.add('show');
-      const remaining = jobs.filter(function(j) { return !done.includes(j.job_id); });
-      document.getElementById('result-title').textContent =
-        done.length + ' File Selesai - ' + remaining.length + ' File Tersisa';
-      document.getElementById('result-sub').textContent =
-        'Halaman dipulihkan. File berikutnya sedang diproses.';
-    }
-
-    const liveStatus = liveStatuses[jobId] || 'waiting';
-    setProgress(0, liveStatus === 'processing' ? 'Sedang diproses…' : 'Menunggu dalam antrian…');
-    renderSteps(0);
-    renderPipeline(liveStatus === 'processing' ? 1 : 0);
-
-    addLog('[INFO] ↩ Session dipulihkan setelah refresh', 'i');
-    addLog('[INFO] Memantau job: ' + recoveredJob.filename + ' (' + liveStatus + ')', 'i');
-    if (done.length > 0) {
-      addLog('[INFO] ' + done.length + ' file sudah selesai sebelumnya', 'ok');
-    }
-
-    startElapsed();
-    applyBackendData({ status: liveStatus, progress: liveStatus === 'processing' ? 10 : 0, stage: null });
-    handleStatusOnce(liveStatus);
-    // Reinit tombol Batalkan ke state bersih untuk job yang di-recover
-    initCancelButton(jobId);
-    startPolling();
-    showToast('↩ Sesi dilanjutkan setelah refresh', 'info');
+// ══════════════════════════════════════════════
+//  DOWNLOAD HASIL - GET /download/<job_id>?type=pdf|csv
+// ══════════════════════════════════════════════
+function downloadReportFile(type) {
+  if (!jobId) {
+    toast('Tidak ada laporan untuk diunduh', 'warning');
     return;
   }
+  window.location = api('/download/' + encodeURIComponent(jobId) + '?type=' + type);
+}
 
-  // 3. Tidak ada session aktif — mulai normal
-  startQueuePreview();
-})();
 </script>
 </body>
 </html>
